@@ -279,7 +279,7 @@ const translations = {
     // Header/Navigation
     nav: {
       home: "Trang chủ",
-      shop: "Cửa hàng",
+      shop: "Sản phẩm",
       about: "Về chúng tôi",
       contact: "Liên hệ",
       cart: "cart",

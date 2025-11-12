@@ -17,6 +17,7 @@ const ProductForm = ({
   normalizeImage,
   loading
 }) => {
+  console.log(editingProduct);
   return (
     <div className="max-h-[70vh] overflow-y-auto">
       <form onSubmit={handleSaveProduct} className="p-6">
@@ -255,7 +256,7 @@ const ProductForm = ({
                     <input
                       type="number"
                       name="stock"
-                      defaultValue={editingProduct?.stock}
+                      defaultValue={editingProduct?.stockQuantity}
                       required
                       min="0"
                       disabled={!!editingProduct}

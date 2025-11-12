@@ -1,0 +1,412 @@
+{
+  "admin": {
+    "dashboard": {
+      "title": "Bảng điều khiển",
+      "welcome": "Chào mừng quay trở lại!",
+      "subtitle": "Tổng quan hoạt động cửa hàng sách hôm nay",
+      "lastUpdate": "Cập nhật lần cuối",
+      "loading": "Đang tải dữ liệu dashboard...",
+      "tryAgain": "Thử lại",
+      "stats": {
+        "totalProducts": "Tổng số sản phẩm",
+        "totalOrders": "Tổng số đơn hàng",
+        "totalRevenue": "Tổng doanh thu",
+        "totalCategories": "Tổng danh mục",
+        "totalCustomers": "Tổng khách hàng",
+        "totalEmployees": "Tổng nhân viên"
+      },
+      "charts": {
+        "revenueOverview": "Tổng quan doanh thu",
+        "chartPlaceholder": "Biểu đồ sẽ được hiển thị tại đây"
+      }
+    },
+    "sidebar": {
+      "title": "BookStore Admin",
+      "subtitle": "Quản lý cửa hàng",
+      "sections": {
+        "dashboard": "Bảng điều khiển",
+        "sales": "Bán hàng",
+        "accountManagement": "Quản lý tài khoản",
+        "customersEmployees": "Khách hàng & Nhân viên",
+        "productsPromotions": "Sản phẩm & Khuyến mãi",
+        "ordersWarehouse": "Đơn hàng & Kho",
+        "other": "Khác"
+      },
+      "menu": {
+        "dashboard": "Bảng điều khiển",
+        "pos": "POS - Bán hàng",
+        "roles": "Vai trò",
+        "accounts": "Tài khoản",
+        "customerTypes": "Loại khách hàng",
+        "customers": "Khách hàng",
+        "employees": "Nhân viên",
+        "suppliers": "Nhà cung cấp",
+        "categories": "Danh mục",
+        "products": "Sản phẩm",
+        "promotionTypes": "Loại khuyến mãi",
+        "promotions": "Khuyến mãi",
+        "orders": "Đơn hàng",
+        "promotionOrders": "Đơn hàng khuyến mãi",
+        "importInvoices": "Hóa đơn nhập",
+        "importDetails": "Duyệt hóa đơn nhập",
+        "inventory": "Kho hàng",
+        "priceHistory": "Lịch sử giá",
+        "comments": "Bình luận",
+        "returns": "Đổi trả",
+        "comingSoon": "(sắp có)"
+      }
+    },
+    "customers": {
+      "title": "Quản lý khách hàng",
+      "subtitle": "Quản lý thông tin khách hàng và đơn hàng",
+      "addCustomer": "Thêm khách hàng",
+      "editCustomer": "Sửa khách hàng",
+      "viewCustomer": "Xem chi tiết khách hàng",
+      "deleteCustomer": "Xóa khách hàng",
+      "searchPlaceholder": "Tìm kiếm theo tên, email, hoặc số điện thoại...",
+      "noCustomers": "Không tìm thấy khách hàng nào",
+      "stats": {
+        "total": "Tổng khách hàng",
+        "active": "Đang hoạt động",
+        "inactive": "Không hoạt động",
+        "vip": "Khách hàng VIP",
+        "searchResults": "Kết quả tìm kiếm"
+      },
+      "table": {
+        "fullName": "Họ tên",
+        "email": "Email",
+        "phone": "Số điện thoại",
+        "address": "Địa chỉ",
+        "joinDate": "Ngày tham gia",
+        "totalSpent": "Tổng chi tiêu",
+        "status": "Trạng thái",
+        "actions": "Thao tác"
+      },
+      "form": {
+        "fullName": "Họ tên *",
+        "email": "Email *",
+        "phone": "Số điện thoại",
+        "address": "Địa chỉ",
+        "status": "Trạng thái",
+        "active": "Đang hoạt động",
+        "inactive": "Không hoạt động"
+      },
+      "buttons": {
+        "view": "Xem",
+        "edit": "Sửa",
+        "delete": "Xóa",
+        "cancel": "Hủy",
+        "save": "Lưu",
+        "create": "Tạo",
+        "update": "Cập nhật",
+        "close": "Đóng"
+      },
+      "messages": {
+        "createSuccess": "Tạo khách hàng thành công!",
+        "updateSuccess": "Cập nhật khách hàng thành công!",
+        "deleteSuccess": "Xóa khách hàng thành công!",
+        "createError": "Có lỗi xảy ra khi tạo khách hàng",
+        "updateError": "Có lỗi xảy ra khi cập nhật khách hàng",
+        "deleteError": "Có lỗi xảy ra khi xóa khách hàng",
+        "loadError": "Không thể tải dữ liệu khách hàng. Vui lòng thử lại.",
+        "deleteConfirm": "Bạn có chắc chắn muốn xóa khách hàng này?",
+        "deleteWarning": "Hành động này không thể hoàn tác!"
+      }
+    },
+    "employees": {
+      "title": "Quản lý nhân viên",
+      "subtitle": "Quản lý thông tin và vai trò nhân viên",
+      "addEmployee": "Thêm nhân viên",
+      "editEmployee": "Sửa nhân viên",
+      "viewEmployee": "Xem chi tiết nhân viên",
+      "deleteEmployee": "Xóa nhân viên",
+      "searchPlaceholder": "Tìm kiếm theo tên, mã, hoặc phòng ban...",
+      "noEmployees": "Không tìm thấy nhân viên nào",
+      "departments": {
+        "management": "Quản lý",
+        "sales": "Bán hàng",
+        "warehouse": "Kho",
+        "support": "Hỗ trợ",
+        "accounting": "Kế toán",
+        "marketing": "Marketing",
+        "delivery": "Giao hàng",
+        "it": "IT"
+      },
+      "stats": {
+        "total": "Tổng nhân viên",
+        "active": "Đang làm việc",
+        "inactive": "Nghỉ việc",
+        "managers": "Quản lý",
+        "searchResults": "Kết quả tìm kiếm"
+      },
+      "table": {
+        "employeeId": "Mã nhân viên",
+        "fullName": "Họ tên",
+        "email": "Email",
+        "phone": "Số điện thoại",
+        "department": "Phòng ban",
+        "position": "Chức vụ",
+        "salary": "Lương",
+        "hireDate": "Ngày vào làm",
+        "status": "Trạng thái",
+        "actions": "Thao tác"
+      },
+      "form": {
+        "employeeId": "Mã nhân viên *",
+        "fullName": "Họ tên *",
+        "email": "Email *",
+        "phone": "Số điện thoại",
+        "address": "Địa chỉ",
+        "department": "Phòng ban *",
+        "position": "Chức vụ *",
+        "salary": "Lương *",
+        "status": "Trạng thái"
+      }
+    },
+    "customerTypes": {
+      "title": "Quản lý loại khách hàng",
+      "subtitle": "Quản lý các loại khách hàng và ưu đãi tương ứng",
+      "addCustomerType": "Thêm loại khách hàng",
+      "editCustomerType": "Chỉnh sửa loại khách hàng",
+      "viewCustomerType": "Chi tiết loại khách hàng",
+      "deleteCustomerType": "Xóa loại khách hàng",
+      "searchPlaceholder": "Tìm kiếm theo tên, mã loại khách hàng hoặc mô tả...",
+      "noCustomerTypes": "Không tìm thấy loại khách hàng nào",
+      "stats": {
+        "total": "Tổng loại khách hàng",
+        "withPromotion": "Có mã khuyến mãi",
+        "searchResults": "Kết quả tìm kiếm"
+      },
+      "table": {
+        "typeCode": "Mã loại",
+        "typeName": "Tên loại khách hàng",
+        "promotionCode": "Mã khuyến mãi",
+        "description": "Mô tả",
+        "actions": "Thao tác",
+        "none": "Không có",
+        "noDescription": "Không có mô tả"
+      },
+      "form": {
+        "typeCode": "Mã loại khách hàng *",
+        "typeName": "Tên loại khách hàng *",
+        "promotionCode": "Mã khuyến mãi",
+        "description": "Mô tả",
+        "typeCodePlaceholder": "VD: CUS_SILVER",
+        "typeNamePlaceholder": "VD: Khách hàng Bạc",
+        "promotionCodePlaceholder": "VD: VIP5",
+        "descriptionPlaceholder": "Mô tả về loại khách hàng này..."
+      }
+    },
+    "common": {
+      "loading": "Đang tải...",
+      "error": "Lỗi",
+      "success": "Thành công",
+      "warning": "Cảnh báo",
+      "info": "Thông tin",
+      "confirm": "Xác nhận",
+      "cancel": "Hủy",
+      "save": "Lưu",
+      "delete": "Xóa",
+      "edit": "Sửa",
+      "view": "Xem",
+      "add": "Thêm",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "close": "Đóng",
+      "search": "Tìm kiếm",
+      "filter": "Lọc",
+      "sort": "Sắp xếp",
+      "actions": "Thao tác",
+      "status": "Trạng thái",
+      "active": "Hoạt động",
+      "inactive": "Không hoạt động",
+      "yes": "Có",
+      "no": "Không",
+      "all": "Tất cả",
+      "none": "Không có",
+      "required": "Bắt buộc",
+      "optional": "Tùy chọn",
+      "page": "Trang",
+      "of": "của",
+      "items": "mục",
+      "total": "Tổng",
+      "welcome": "Chào mừng",
+      "admin": "Quản trị viên",
+      "administrator": "Quản trị viên"
+    },
+    "accounts": {
+      "title": "Quản lý tài khoản",
+      "subtitle": "Quản lý tài khoản người dùng và quyền hạn",
+      "addAccount": "Thêm tài khoản",
+      "editAccount": "Sửa tài khoản",
+      "deleteAccount": "Xóa tài khoản",
+      "searchPlaceholder": "Tìm kiếm theo tên đăng nhập hoặc email...",
+      "noAccounts": "Không tìm thấy tài khoản nào",
+      "table": {
+        "username": "Tên đăng nhập",
+        "email": "Email",
+        "role": "Vai trò",
+        "status": "Trạng thái",
+        "lastLogin": "Đăng nhập cuối",
+        "createdAt": "Ngày tạo",
+        "actions": "Thao tác"
+      },
+      "form": {
+        "username": "Tên đăng nhập *",
+        "email": "Email *",
+        "password": "Mật khẩu *",
+        "confirmPassword": "Xác nhận mật khẩu *",
+        "role": "Vai trò *",
+        "status": "Trạng thái"
+      }
+    },
+    "roles": {
+      "title": "Quản lý vai trò",
+      "subtitle": "Quản lý vai trò người dùng và quyền hạn",
+      "addRole": "Thêm vai trò",
+      "editRole": "Sửa vai trò",
+      "deleteRole": "Xóa vai trò",
+      "searchPlaceholder": "Tìm kiếm theo tên hoặc mô tả...",
+      "noRoles": "Không tìm thấy vai trò nào",
+      "table": {
+        "name": "Tên",
+        "description": "Mô tả",
+        "permissions": "Quyền hạn",
+        "status": "Trạng thái",
+        "createdAt": "Ngày tạo",
+        "actions": "Thao tác"
+      },
+      "form": {
+        "name": "Tên vai trò *",
+        "description": "Mô tả *",
+        "permissions": "Quyền hạn *",
+        "status": "Trạng thái"
+      }
+    },
+    "products": {
+      "title": "Quản lý sản phẩm",
+      "subtitle": "Quản lý danh mục sản phẩm và tồn kho",
+      "addProduct": "Thêm sản phẩm",
+      "editProduct": "Sửa sản phẩm",
+      "deleteProduct": "Xóa sản phẩm",
+      "viewProduct": "Xem sản phẩm",
+      "searchPlaceholder": "Tìm kiếm theo tên, mã, hoặc danh mục...",
+      "noProducts": "Không tìm thấy sản phẩm nào",
+      "stats": {
+        "total": "Tổng sản phẩm",
+        "inStock": "Còn hàng",
+        "lowStock": "Sắp hết hàng",
+        "outOfStock": "Hết hàng"
+      }
+    },
+    "orders": {
+      "title": "Quản lý đơn hàng",
+      "subtitle": "Quản lý đơn hàng khách hàng và giao hàng",
+      "viewOrder": "Chi tiết đơn hàng",
+      "editOrder": "Chỉnh sửa đơn hàng",
+      "deleteOrder": "Xóa đơn hàng",
+      "deleteConfirm": "Bạn có chắc chắn muốn xóa đơn hàng này?",
+      "updateStatus": "Cập nhật trạng thái",
+      "searchPlaceholder": "Tìm kiếm theo mã đơn hàng, khách hàng...",
+      "noOrders": "Không tìm thấy đơn hàng nào",
+      "orderInfo": "Thông tin đơn hàng",
+      "customerInfo": "Thông tin khách hàng",
+      "orderDetails": "Chi tiết sản phẩm",
+      "customerName": "Tên khách hàng",
+      "phone": "Số điện thoại",
+      "address": "Địa chỉ",
+      "product": "Sản phẩm",
+      "quantity": "Số lượng",
+      "price": "Đơn giá",
+      "subtotal": "Thành tiền",
+      "notes": "Ghi chú",
+      "notesPlaceholder": "Ghi chú thêm về đơn hàng...",
+      "stats": {
+        "total": "Tổng đơn hàng",
+        "delivered": "Đã giao",
+        "pending": "Chờ xử lý",
+        "revenue": "Doanh thu"
+      },
+      "filters": {
+        "allStatuses": "Tất cả trạng thái",
+        "allPaymentStatuses": "Tất cả thanh toán",
+        "results": "Kết quả"
+      },
+      "table": {
+        "orderCode": "Mã đơn hàng",
+        "customer": "Khách hàng",
+        "orderDate": "Ngày đặt",
+        "status": "Trạng thái",
+        "paymentStatus": "Thanh toán",
+        "totalAmount": "Tổng tiền"
+      },
+      "messages": {
+        "loadError": "Không thể tải danh sách đơn hàng",
+        "statusUpdateSuccess": "Cập nhật trạng thái thành công!",
+        "statusUpdateError": "Có lỗi xảy ra khi cập nhật trạng thái",
+        "paymentStatusUpdateSuccess": "Cập nhật trạng thái thanh toán thành công!",
+        "paymentStatusUpdateError": "Có lỗi xảy ra khi cập nhật trạng thái thanh toán",
+        "updateSuccess": "Cập nhật đơn hàng thành công!",
+        "updateError": "Có lỗi xảy ra khi cập nhật đơn hàng",
+        "deleteSuccess": "Xóa đơn hàng thành công!",
+        "deleteError": "Có lỗi xảy ra khi xóa đơn hàng"
+      },
+      "status": {
+        "pending": "Chờ xác nhận",
+        "confirmed": "Đã xác nhận",
+        "preparing": "Đang chuẩn bị",
+        "shipping": "Đang giao hàng",
+        "delivered": "Đã giao hàng",
+        "cancelled": "Đã hủy",
+        "returned": "Đã trả hàng"
+      },
+      "paymentStatus": {
+        "pending": "Chờ thanh toán",
+        "paid": "Đã thanh toán",
+        "failed": "Thanh toán thất bại",
+        "refunded": "Đã hoàn tiền"
+      }
+    },
+    "suppliers": {
+      "title": "Quản lý nhà cung cấp",
+      "subtitle": "Quản lý nhà cung cấp và quan hệ đối tác",
+      "addSupplier": "Thêm nhà cung cấp",
+      "editSupplier": "Sửa nhà cung cấp",
+      "deleteSupplier": "Xóa nhà cung cấp",
+      "searchPlaceholder": "Tìm kiếm theo tên, liên hệ, hoặc email...",
+      "noSuppliers": "Không tìm thấy nhà cung cấp nào"
+    },
+    "categories": {
+      "title": "Quản lý danh mục",
+      "subtitle": "Quản lý danh mục sản phẩm và phân loại",
+      "addCategory": "Thêm danh mục",
+      "editCategory": "Sửa danh mục",
+      "deleteCategory": "Xóa danh mục",
+      "searchPlaceholder": "Tìm kiếm theo tên danh mục...",
+      "noCategories": "Không tìm thấy danh mục nào"
+    },
+    "promotions": {
+      "title": "Quản lý khuyến mãi",
+      "subtitle": "Quản lý giảm giá và chiến dịch khuyến mãi",
+      "addPromotion": "Thêm khuyến mãi",
+      "editPromotion": "Sửa khuyến mãi",
+      "deletePromotion": "Xóa khuyến mãi",
+      "searchPlaceholder": "Tìm kiếm theo tên hoặc mã khuyến mãi...",
+      "noPromotions": "Không tìm thấy khuyến mãi nào"
+    },
+    "inventory": {
+      "title": "Quản lý kho hàng",
+      "subtitle": "Quản lý mức tồn kho và hoạt động kho bãi",
+      "updateStock": "Cập nhật tồn kho",
+      "searchPlaceholder": "Tìm kiếm theo tên sản phẩm hoặc SKU...",
+      "noInventory": "Không tìm thấy mục tồn kho nào"
+    },
+    "modal": {
+      "comingSoon": "Tính năng sắp có",
+      "featureInDevelopment": "Hệ thống đang phát triển. Tính năng \"{title}\" sẽ được cập nhật trong tương lai.",
+      "confirmDelete": "Xác nhận xóa",
+      "deleteWarning": "Bạn có chắc chắn muốn xóa mục này?",
+      "cannotUndo": "Hành động này không thể hoàn tác!"
+    }
+  }
+}

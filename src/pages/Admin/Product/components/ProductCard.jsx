@@ -5,16 +5,42 @@ import {
   FaTag,
   FaBook,
   FaShoppingCart,
-  FaStar
+  FaStar,
+  FaTimes
 } from "react-icons/fa";
 
 const ProductCard = ({
   product,
   onEdit,
   onDelete,
+  onAddPromotion,
+  onRemovePromotion,
+  promotions,
   normalizeImage,
   formatCurrency
 }) => {
+  // compute discounted price using promotion.value (prefer promotions list)
+  const originalPrice = Number(product?.price || 0);
+  const promotionObj =
+    promotions?.find((p) => p.promotionCode === product?.promotionCode) || null;
+  const promoValue = promotionObj?.value ?? product?.discountValue ?? null;
+  const promoName =
+    promotionObj?.promotionName ?? product?.promotionName ?? null;
+  let discountedPrice = null;
+  let discountLabel = null;
+  if (product?.promotionCode && promoValue != null) {
+    const v = Number(promoValue);
+    if (!Number.isNaN(v)) {
+      if (v <= 1) {
+        discountedPrice = Math.round(originalPrice * (1 - v));
+        discountLabel = `${(v * 100).toFixed(0)}%`;
+      } else {
+        discountedPrice = Math.max(0, originalPrice - v);
+        discountLabel = `${formatCurrency(v)}đ`;
+      }
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden group">
       <div className="relative aspect-[4/5] bg-gray-50 overflow-hidden">
@@ -48,6 +74,25 @@ const ProductCard = ({
           >
             <FaTrash size={16} />
           </button>
+
+          {/* Promotion actions */}
+          <button
+            onClick={() => onAddPromotion && onAddPromotion(product)}
+            className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-full transition-colors"
+            title="Thêm/Áp dụng khuyến mãi"
+          >
+            <FaTag size={16} />
+          </button>
+
+          {product?.promotionCode && (
+            <button
+              onClick={() => onRemovePromotion && onRemovePromotion(product)}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full transition-colors"
+              title="Xóa khuyến mãi"
+            >
+              <FaTimes size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -74,10 +119,43 @@ const ProductCard = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg font-bold text-green-600">
-            {formatCurrency(product.price)}đ
-          </span>
+        <div className="flex items-center gap-3 mb-3">
+          {(() => {
+            const original = originalPrice;
+            const discounted = discountedPrice;
+            return (
+              <>
+                <div>
+                  {discounted != null ? (
+                    <>
+                      <div className="text-sm text-gray-400 line-through">
+                        {formatCurrency(original)}đ
+                      </div>
+                      <div className="text-lg font-bold text-red-600">
+                        {formatCurrency(discounted)}đ
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-lg font-bold text-green-600">
+                      {formatCurrency(original)}đ
+                    </div>
+                  )}
+                </div>
+
+                {discounted != null && (
+                  <div className="inline-flex flex-col items-start gap-1">
+                    <span className="inline-flex items-center gap-2 bg-yellow-50 border border-yellow-200 text-yellow-800 px-2 py-1 rounded text-xs font-medium">
+                      <FaTag className="text-yellow-700" />
+                      <span>{discountLabel}</span>
+                    </span>
+                    {promoName && (
+                      <span className="text-xs text-gray-500">{promoName}</span>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         <div className="flex items-center justify-between text-xs">
@@ -85,12 +163,12 @@ const ProductCard = ({
             <FaShoppingCart className="text-gray-400" />
             <span
               className={`px-2 py-1 rounded-full ${
-                (product.stock || 0) > 0
+                (product.stockQuantity || 0) > 0
                   ? "bg-green-100 text-green-600"
                   : "bg-red-100 text-red-600"
               }`}
             >
-              {product.stock || 0} tồn kho
+              {product.stockQuantity || 0} tồn kho
             </span>
           </div>
 

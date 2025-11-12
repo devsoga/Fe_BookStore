@@ -14,8 +14,37 @@ const CartSidebar = ({ titleSidebar }) => {
   const { setIsOpenSidebar } = useContext(SidebarContext);
   const safeCartList = Array.isArray(listItemCart) ? listItemCart : [];
   const listItemCartRender = [...safeCartList].reverse();
+  console.log(listItemCart);
   const [hasItems, setHasItems] = useState(false);
   const { formatVND } = useStransferToVND();
+
+  // compute cart totals locally (respecting item.promotion.value) so UI reflects discounts
+  let cartBaseTotal = 0;
+  let cartFinalTotal = 0;
+  safeCartList.forEach((entry) => {
+    const item = entry?.item ? entry.item : entry;
+    if (!item) return;
+    const qty = Number(item.quantity ?? item.qty ?? 1) || 0;
+    const base = Number(item.unitPrice ?? item.price ?? 0) || 0;
+    let final = base;
+    // support different promotion shapes (promotion.value or discountValue)
+    const promoRaw =
+      item?.promotion?.value ??
+      item?.discountValue ??
+      item?.discount?.value ??
+      item?.discountAmount ??
+      null;
+    if (promoRaw != null) {
+      const v = Number(promoRaw);
+      if (!Number.isNaN(v) && v > 0) {
+        if (v <= 1) final = Math.round(base * (1 - v));
+        else final = Math.max(0, base - v);
+      }
+    }
+    cartBaseTotal += base * qty;
+    cartFinalTotal += final * qty;
+  });
+  const cartSaving = Math.max(0, cartBaseTotal - cartFinalTotal);
 
   useEffect(() => {
     setHasItems(
@@ -50,11 +79,17 @@ const CartSidebar = ({ titleSidebar }) => {
         {hasItems && (
           <>
             {" "}
-            <div className="flex justify-between">
-              <p>Total price: </p>
-              <p className="text-gray-600">
-                {formatVND(totalPrice(safeCartList))}
-              </p>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between">
+                <p>Total price: </p>
+                <p className="text-gray-600">{formatVND(cartFinalTotal)}</p>
+              </div>
+              {cartSaving > 0 && (
+                <div className="flex justify-between text-sm text-red-600">
+                  <p>You save:</p>
+                  <p>{formatVND(cartSaving)}</p>
+                </div>
+              )}
             </div>
             <div className="space-y-3">
               <Link to={"/cart"}>
@@ -66,14 +101,6 @@ const CartSidebar = ({ titleSidebar }) => {
                   w="w-full"
                 />
               </Link>
-              <Button
-                content={"CHECKOUT"}
-                w="w-full"
-                hoverTextColor={"hover:text-white"}
-                bgColor={"bg-transparent"}
-                hoverBgColor={"hover:bg-black"}
-                textColor={"text-black"}
-              />
             </div>
           </>
         )}

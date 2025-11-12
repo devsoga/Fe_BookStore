@@ -2,19 +2,19 @@ import axiosClient from "./axiosClient";
 
 const getAllInventory = async () => {
   const result = await axiosClient.get("/inventory");
-  return result;
+  return result?.data?.data;
 };
 
 const getInventoryByProductCode = async (productCode) => {
   const result = await axiosClient.get(`/inventory/by-product/${productCode}`);
-  return result;
+  return result?.data?.data;
 };
 
 const getInventoryDetailsByInventoryCode = async (inventoryCode) => {
   const result = await axiosClient.get(
     `/inventory-details/by-inventory/${inventoryCode}`
   );
-  return result;
+  return result?.data?.data;
 };
 
 export const warehouseService = {

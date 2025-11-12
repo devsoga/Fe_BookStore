@@ -36,7 +36,11 @@ const ProductInfoCard = ({
               Danh mục
             </p>
             <span className="inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full">
-              {product.category}
+              {typeof product.category === "object"
+                ? product.category?.categoryName ||
+                  product.category?.categoryCode ||
+                  "Unknown Category"
+                : product.category || "Unknown Category"}
             </span>
           </div>
         </div>

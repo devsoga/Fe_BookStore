@@ -15,6 +15,38 @@ import FavoriteItemAnimation from "../FavoriteItemAnimation/FavoriteItemAnimatio
 const Product = ({ item, addCartBtn = false, setIsLoadingFunction }) => {
   // support both API shape and original shape
   const { image, productName, categoryCode, price = 1, productCode } = item;
+
+  // Promotion detection using item.promotion.value
+  // value <= 1: percentage discount (e.g., 0.2 = 20%)
+  // value > 1: fixed amount discount (e.g., 50000 = 50,000 VND off)
+  let hasPromotion = false;
+  let finalPrice = price;
+  let discountPercent = 0;
+  let discountAmount = 0;
+  // discountLabel will be built at render time (after formatVND is available)
+  let discountLabel = null;
+
+  if (item.promotion && item.promotion.value != null) {
+    const promotionValue = Number(item.promotion.value);
+
+    if (promotionValue > 0) {
+      hasPromotion = true;
+
+      if (promotionValue <= 1) {
+        // Percentage discount
+        discountPercent = Math.round(promotionValue * 100);
+        finalPrice = Math.round(Number(price) * (1 - promotionValue));
+        discountLabel = `-${discountPercent}%`;
+      } else {
+        // Fixed amount discount
+        discountAmount = promotionValue;
+        finalPrice = Math.max(0, Number(price) - discountAmount);
+        discountPercent = Math.round((discountAmount / Number(price)) * 100);
+        // don't format here; format in JSX after hook initialization
+        discountLabel = `-${discountAmount}`;
+      }
+    }
+  }
   const [loading, setLoading] = useState(false);
 
   const {
@@ -53,6 +85,13 @@ const Product = ({ item, addCartBtn = false, setIsLoadingFunction }) => {
       <div className="w-full">
         {/* Make the interactive image container clip scaled image and keep rounded corners */}
         <div className="group relative border cursor-pointer overflow-hidden ">
+          {hasPromotion && (
+            <div className="absolute top-3 left-3 bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-lg z-10">
+              {discountAmount > 0
+                ? `-${formatVND(discountAmount)}`
+                : discountLabel || "SALE"}
+            </div>
+          )}
           <img
             src={buildImageUrl(image)}
             alt={productName}
@@ -106,17 +145,44 @@ const Product = ({ item, addCartBtn = false, setIsLoadingFunction }) => {
             <h2 className="text-xl mt-3 max-w-[240px] mx-auto truncate">
               {productName}
             </h2>
-            <p className="text-third"> {formatVND(price)}</p>
+            {/* Price display: if there's a promotion show discounted + original */}
+            {hasPromotion ? (
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="text-xl font-bold text-red-600">
+                    {formatVND(finalPrice)}
+                  </div>
+                  <div className="text-sm text-gray-400 line-through">
+                    {formatVND(price)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-third"> {formatVND(price)}</p>
+            )}
           </div>
         ) : (
-          <div className="flex flex-col justify-center items-center space-y-2">
+          <div className="flex flex-col justify-center items-center space-y-2 ">
             <h2 className="text-xl mt-3 max-w-[240px] mx-auto truncate">
               {productName}
             </h2>
             <p className="text-third">
               {/* {category || categoryCode || "Unknown Category"} */}
             </p>
-            <p className="text-third"> {formatVND(price)}</p>
+            {hasPromotion ? (
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="text-xl font-bold text-red-600">
+                    {formatVND(finalPrice)}
+                  </div>
+                  <div className="text-sm text-gray-400 line-through">
+                    {formatVND(price)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-third"> {formatVND(price)}</p>
+            )}
             <Button
               onClick={handleAddToCart}
               content={"ADD TO CART"}

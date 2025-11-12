@@ -6,6 +6,7 @@ import EmptySidebar from "./EmptySidebar";
 import { StoreContext } from "~/contexts/StoreProvider";
 import { SidebarContext } from "~/contexts/SidebarProvider";
 import { cartService } from "~/apis/cartService";
+import { useStransferToVND } from "~/hooks/useStransferToVND";
 import { ToastifyContext } from "~/contexts/ToastifyProvider";
 
 const WishlistSidebar = ({ titleSidebar }) => {
@@ -27,6 +28,7 @@ const WishlistSidebar = ({ titleSidebar }) => {
       }),
     [safeFavList]
   );
+  const { formatVND } = useStransferToVND();
   // selection helpers
   const selectedKeys = Object.keys(selectedMap).filter((k) => selectedMap[k]);
   const allKeys = normalized.map((n) => String(n.key));
@@ -40,6 +42,33 @@ const WishlistSidebar = ({ titleSidebar }) => {
       selectAllRef.current.indeterminate = !isAllSelected && isAnySelected;
     }
   }, [isAllSelected, isAnySelected]);
+
+  // calculate total savings for selected items (if any)
+  const totalSelectedSaving = normalized.reduce((sum, n) => {
+    const key = String(n.key);
+    if (!selectedKeys.includes(key)) return sum;
+    const product = n.inner || {};
+    const base = Number(product.unitPrice ?? product.price ?? 0) || 0;
+    const promoRaw =
+      product?.promotion?.value ??
+      product?.discountValue ??
+      product?.discount?.value ??
+      product?.discountAmount ??
+      null;
+    if (promoRaw == null) return sum;
+    const v = Number(promoRaw);
+    if (Number.isNaN(v) || v <= 0) return sum;
+    let final = base;
+    let saved = 0;
+    if (v <= 1) {
+      final = Math.round(base * (1 - v));
+      saved = base - final;
+    } else {
+      saved = v;
+      final = Math.max(0, base - saved);
+    }
+    return sum + saved;
+  }, 0);
   return (
     <div className="p-5 flex flex-col justify-between h-full border space-y-5">
       <HeaderSidebar titleSidebar={titleSidebar} />
@@ -120,6 +149,7 @@ const WishlistSidebar = ({ titleSidebar }) => {
                 favoriteId={favId}
                 selectable={true}
                 checked={isChecked}
+                hidePrice={true}
                 onToggle={(val) =>
                   setSelectedMap((prev) => ({ ...prev, [key]: val }))
                 }
@@ -132,7 +162,11 @@ const WishlistSidebar = ({ titleSidebar }) => {
       </div>
       {hasItems && (
         <div className="space-y-3">
-          <Button content={"VIEW WISHLIST"} w="w-full" />
+          {totalSelectedSaving > 0 && (
+            <div className="text-sm text-red-600">
+              Tiết kiệm khi chọn: {formatVND(totalSelectedSaving)}
+            </div>
+          )}
           <Button
             content={"ADD SELECTED TO CART"}
             w="w-full"

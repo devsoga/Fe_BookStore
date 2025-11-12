@@ -56,6 +56,34 @@ const MainContentDetail = ({ product }) => {
   const { handleAddToCart } = useAddToCart(product, quantity);
   Fancybox.bind("[data-fancybox]", {});
 
+  // Promotion calculation using product.promotion.value
+  const rawPrice = Number(price);
+  let hasPromotion = false;
+  let finalPrice = null;
+  let discountAmount = 0;
+  let discountPercent = 0;
+  if (
+    product?.promotion &&
+    product.promotion.value != null &&
+    !Number.isNaN(rawPrice) &&
+    rawPrice > 0
+  ) {
+    const v = Number(product.promotion.value);
+    if (v > 0) {
+      hasPromotion = true;
+      if (v <= 1) {
+        discountPercent = Math.round(v * 100);
+        finalPrice = Math.round(rawPrice * (1 - v));
+        discountAmount = rawPrice - finalPrice;
+      } else {
+        discountAmount = v;
+        finalPrice = Math.max(0, rawPrice - discountAmount);
+        discountPercent =
+          rawPrice > 0 ? Math.round((discountAmount / rawPrice) * 100) : 0;
+      }
+    }
+  }
+
   // useEffect(() => {
   //   commentService
   //     .findAllCommentByProductId(_id)
@@ -105,7 +133,14 @@ const MainContentDetail = ({ product }) => {
       <div className="flex flex-wrap xl:flex-nowrap gap-10">
         {/* Hình ảnh sản phẩm */}
         {/* <ImageCarousel images={displayImages} /> */}
-        <div className="w-full xl:w-2/5 overflow-hidden group">
+        <div className="w-full xl:w-2/5 overflow-hidden group relative">
+          {hasPromotion && (
+            <div className="absolute top-4 left-4 z-20 bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-lg">
+              {discountAmount > 0
+                ? `-${formatVND(discountAmount)}`
+                : `-${discountPercent}%`}
+            </div>
+          )}
           <img
             src={displayImages}
             alt={displayName}
@@ -116,7 +151,25 @@ const MainContentDetail = ({ product }) => {
         {/* Thông tin sản phẩm */}
         <div className="w-full xl:w-3/5 flex flex-col space-y-3">
           <h2 className="text-3xl">{displayName}</h2>
-          <p className="text-xl">{formatVND(price)}</p>
+          {hasPromotion && finalPrice != null ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl font-bold text-red-600">
+                  {formatVND(finalPrice)}
+                </div>
+                <div className="text-lg text-gray-400 line-through">
+                  {formatVND(price)}
+                </div>
+              </div>
+              <div className="text-sm text-red-600">
+                Tiết kiệm {formatVND(discountAmount)} ({discountPercent}%)
+              </div>
+            </div>
+          ) : (
+            <p className="text-xl">
+              {isNaN(Number(price)) ? price : formatVND(price)}
+            </p>
+          )}
           <p>{description}</p>
 
           {/* Số lượng + Add to cart */}

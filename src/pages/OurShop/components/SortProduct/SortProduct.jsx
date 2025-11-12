@@ -6,6 +6,7 @@ import React, {
   useMemo
 } from "react";
 import SelectBoxCustom from "~/components/SelectBoxCustom/SelectBoxCustom";
+import CategoryFilter from "~/pages/OurShop/components/CategoryFilter/CategoryFilter";
 import { useSorting } from "~/hooks/useSorting";
 import { categoryService } from "~/apis/categoryService";
 import { useLanguage } from "~/contexts/LanguageProvider";
@@ -21,30 +22,69 @@ const SortProduct = forwardRef(
       itemPerPageArr[0].value
     );
     const [showCategory, setShowCategory] = useState("all");
-    const [categoryOptions, setCategoryOptions] = useState([
-      { value: "all", title: "All" }
-    ]);
     const { t } = useLanguage();
+
+    // Calculate product counts per category
+    const productCounts = useMemo(() => {
+      if (!Array.isArray(listProduct)) return {};
+
+      const counts = { all: listProduct.length };
+      const categories = [
+        "book",
+        "modelKit",
+        "figure",
+        "calculator",
+        "note",
+        "watch",
+        "pen",
+        "draw",
+        "studentBook",
+        "compaEke",
+        "pencilEraser"
+      ];
+
+      categories.forEach((cat) => {
+        counts[cat] = listProduct.filter((p) => {
+          return p.categoryType === cat;
+        }).length;
+      });
+
+      return counts;
+    }, [listProduct]);
     const getValueSelect = (value, type) => {
       if (type === "sort") {
         setShowSortType(value);
-      } else if (type === "category") {
-        setShowCategory(value);
       } else {
         setShowQuantity(value);
         setLoadingMoreItem(value);
       }
     };
 
+    const handleCategoryChange = (categoryCode) => {
+      console.log("Category changed to:", categoryCode);
+      setShowCategory(categoryCode);
+      // Reset pagination when changing categories
+      setShowQuantity(itemPerPageArr[0].value);
+      setLoadingMoreItem(itemPerPageArr[0].value);
+    };
+
     // derive filtered list by selected category before sorting/pagination
     const filteredByCategory = useMemo(() => {
       if (!Array.isArray(listProduct)) return [];
-      if (!showCategory || showCategory === "all") return listProduct;
+      if (!showCategory || showCategory === "all") {
+        console.log("Showing all products:", listProduct.length);
+        return listProduct;
+      }
 
-      return listProduct.filter((p) => {
-        const code = p.categoryCode || p.category || p.categoryCode;
-        return code === showCategory;
+      const filtered = listProduct.filter((p) => {
+        return p.categoryType === showCategory;
       });
+      console.log(
+        `Filtered by category ${showCategory}:`,
+        filtered.length,
+        "products"
+      );
+      return filtered;
     }, [listProduct, showCategory]);
 
     const { sortedList } = useSorting(
@@ -59,65 +99,49 @@ const SortProduct = forwardRef(
       }
     }));
 
-    // handle sorting
+    // handle sorting and filtering
     useEffect(() => {
       const listAfterSorting = sortedList();
       updateSetListProductRender(listAfterSorting);
-    }, [showSortType, showQuantity, showCategory]);
-
-    // fetch categories from API
-    useEffect(() => {
-      let mounted = true;
-      categoryService
-        .getAllCategory()
-        .then((res) => {
-          const data = res?.data?.data || res?.data || [];
-          if (!mounted || !Array.isArray(data)) return;
-
-          const opts = [
-            { value: "all", title: t ? t("common.all") || "All" : "All" },
-            ...data.map((c) => ({
-              value: c.categoryCode || c.code || c.id,
-              title: c.categoryName || c.name || c.title || c.categoryName
-            }))
-          ];
-          setCategoryOptions(opts);
-        })
-        .catch((err) => {
-          console.error("Failed to load categories:", err);
-        });
-
-      return () => {
-        mounted = false;
-      };
-    }, [t]);
+    }, [showSortType, showQuantity, showCategory, filteredByCategory]);
 
     return (
-      <div className="py-5 flex justify-between">
-        {/* sort + category */}
-        <div className="flex space-x-4 items-center">
-          <SelectBoxCustom
-            selectOptions={sortArr}
-            getValue={getValueSelect}
-            type={"sort"}
-          />
-          <div className="w-56">
-            <SelectBoxCustom
-              selectOptions={categoryOptions}
-              getValue={getValueSelect}
-              type={"category"}
-            />
-          </div>
-        </div>
+      <div className="space-y-6">
+        {/* Category Filter */}
+        <CategoryFilter
+          selectedCategory={showCategory}
+          onCategoryChange={handleCategoryChange}
+          productCounts={productCounts}
+        />
 
-        {/* show item per page */}
-        <div className="flex items-center space-x-5">
-          <h2>Show</h2>
-          <SelectBoxCustom
-            selectOptions={itemPerPageArr}
-            getValue={getValueSelect}
-            type={"show"}
-          />
+        {/* Sort and Items Per Page */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Sort */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-medium text-gray-700">
+                Sắp xếp:
+              </span>
+              <SelectBoxCustom
+                selectOptions={sortArr}
+                getValue={getValueSelect}
+                type={"sort"}
+              />
+            </div>
+
+            {/* Items per page */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-medium text-gray-700">
+                Hiển thị:
+              </span>
+              <SelectBoxCustom
+                selectOptions={itemPerPageArr}
+                getValue={getValueSelect}
+                type={"show"}
+              />
+              <span className="text-sm text-gray-500">sản phẩm</span>
+            </div>
+          </div>
         </div>
       </div>
     );

@@ -858,11 +858,15 @@ const PriceHistoryPage = () => {
                         </td>
                         <td className="px-8 py-6">
                           <div>
-                            <div className="text-lg font-semibold text-gray-900 mb-1">
+                            <div className="text-lg font-semibold text-gray-900 mb-1 max-w-[320px] truncate">
                               {product.productName}
                             </div>
                             <div className="text-sm text-blue-600 bg-blue-100 px-3 py-1 rounded-full inline-block">
-                              {product.category}
+                              {typeof product.category === "object"
+                                ? product.category?.categoryName ||
+                                  product.category?.categoryCode ||
+                                  "Unknown Category"
+                                : product.category || "Unknown Category"}
                             </div>
                           </div>
                         </td>
@@ -969,7 +973,7 @@ const PriceHistoryPage = () => {
               </div>
             </div>
           }
-          size="xl"
+          size="full"
         >
           {selectedProduct && (
             <div className="space-y-6">
@@ -988,7 +992,11 @@ const PriceHistoryPage = () => {
                   <div className="text-center">
                     <p className="text-gray-600 text-sm mb-1">Danh mục</p>
                     <p className="font-semibold text-gray-900">
-                      {selectedProduct.category}
+                      {typeof selectedProduct.category === "object"
+                        ? selectedProduct.category?.categoryName ||
+                          selectedProduct.category?.categoryCode ||
+                          "Unknown Category"
+                        : selectedProduct.category || "Unknown Category"}
                     </p>
                   </div>
                   <div className="text-center">
@@ -1227,7 +1235,7 @@ const PriceHistoryPage = () => {
               </div>
             </div>
           }
-          size="lg"
+          size="full"
         >
           {editingProduct && (
             <div className="space-y-6">

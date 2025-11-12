@@ -22,6 +22,7 @@ import {
 } from "react-icons/fa";
 import { importInvoiceService } from "../../../apis/importInvoiceService";
 import { supplierService } from "../../../apis/supplierService";
+import { productService } from "../../../apis/productService";
 import { path } from "~/assets/Path/path";
 import AdminLayout from "../../../components/Admin/AdminLayout";
 import Modal from "../../../components/Admin/Modal";
@@ -31,6 +32,7 @@ const AdminApprovalPage = () => {
   const [importInvoices, setImportInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [products, setProducts] = useState([]);
   const [viewingInvoice, setViewingInvoice] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -86,6 +88,25 @@ const AdminApprovalPage = () => {
       default:
         return s || "N/A";
     }
+  };
+
+  // helper to get product label
+  const getProductLabel = (code) => {
+    if (!code) return "N/A";
+    const p = (products || []).find(
+      (x) => x.productCode === code || x.code === code || x.id === code
+    );
+    return p
+      ? `${p.productName || p.name || code} (${p.productCode || code})`
+      : code;
+  };
+
+  const getProductName = (code) => {
+    if (!code) return "N/A";
+    const p = (products || []).find(
+      (x) => x.productCode === code || x.code === code || x.id === code
+    );
+    return p ? p.productName || p.name || code : code;
   };
 
   const handleConfirmApprove = async (invoice) => {
@@ -257,6 +278,15 @@ const AdminApprovalPage = () => {
       setSuppliers(response?.data?.data || response?.data || []);
     } catch (error) {
       console.error("Error loading suppliers:", error);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const res = await productService.getAllProduct();
+      setProducts(res?.data?.data || res?.data || []);
+    } catch (err) {
+      console.error("Error loading products:", err);
     }
   };
 
@@ -462,6 +492,7 @@ const AdminApprovalPage = () => {
 
   useEffect(() => {
     loadSuppliers();
+    loadProducts();
   }, []);
 
   useEffect(() => {
@@ -487,6 +518,11 @@ const AdminApprovalPage = () => {
     (sum, inv) => sum + (inv.totalAmount || 0),
     0
   );
+
+  const handleFilterByStatus = (status) => {
+    setFilterStatus(status || "all");
+    setCurrentPage(1);
+  };
 
   return (
     <AdminLayout>
@@ -534,63 +570,7 @@ const AdminApprovalPage = () => {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setFilterStatus("all")}
-                className={`px-3 py-2 rounded-lg border ${
-                  filterStatus === "all"
-                    ? "bg-purple-600 text-white border-purple-600"
-                    : "bg-white text-gray-700"
-                }`}
-                title="Hiển thị tất cả"
-              >
-                Tất cả
-              </button>
-              <button
-                onClick={() => setFilterStatus("pending")}
-                className={`px-3 py-2 rounded-lg border ${
-                  filterStatus === "pending"
-                    ? "bg-orange-600 text-white border-orange-600"
-                    : "bg-white text-gray-700"
-                }`}
-                title="Chỉ hiển thị hóa đơn chờ duyệt"
-              >
-                Chờ duyệt
-              </button>
-              <button
-                onClick={() => setFilterStatus("approved")}
-                className={`px-3 py-2 rounded-lg border ${
-                  filterStatus === "approved"
-                    ? "bg-green-600 text-white border-green-600"
-                    : "bg-white text-gray-700"
-                }`}
-                title="Chỉ hiển thị hóa đơn đã duyệt"
-              >
-                Đã duyệt
-              </button>
-              <button
-                onClick={() => setFilterStatus("rejected")}
-                className={`px-3 py-2 rounded-lg border ${
-                  filterStatus === "rejected"
-                    ? "bg-red-600 text-white border-red-600"
-                    : "bg-white text-gray-700"
-                }`}
-                title="Chỉ hiển thị hóa đơn đã từ chối"
-              >
-                Đã từ chối
-              </button>
-              <button
-                onClick={() => setFilterStatus("deleted")}
-                className={`px-3 py-2 rounded-lg border ${
-                  filterStatus === "deleted"
-                    ? "bg-gray-600 text-white border-gray-600"
-                    : "bg-white text-gray-700"
-                }`}
-                title="Chỉ hiển thị hóa đơn đã xóa"
-              >
-                Đã xóa
-              </button>
-            </div>
+
             <div className="flex items-center gap-2">
               <select
                 value={pageSize}
@@ -607,8 +587,14 @@ const AdminApprovalPage = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleFilterByStatus("all")}
+            onKeyDown={(e) => e.key === "Enter" && handleFilterByStatus("all")}
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
@@ -624,7 +610,15 @@ const AdminApprovalPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleFilterByStatus("pending")}
+            onKeyDown={(e) =>
+              e.key === "Enter" && handleFilterByStatus("pending")
+            }
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Chờ duyệt</p>
@@ -638,7 +632,15 @@ const AdminApprovalPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleFilterByStatus("approved")}
+            onKeyDown={(e) =>
+              e.key === "Enter" && handleFilterByStatus("approved")
+            }
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Đã duyệt</p>
@@ -652,7 +654,15 @@ const AdminApprovalPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleFilterByStatus("rejected")}
+            onKeyDown={(e) =>
+              e.key === "Enter" && handleFilterByStatus("rejected")
+            }
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Đã từ chối</p>
@@ -666,7 +676,15 @@ const AdminApprovalPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleFilterByStatus("deleted")}
+            onKeyDown={(e) =>
+              e.key === "Enter" && handleFilterByStatus("deleted")
+            }
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Đã xóa</p>
@@ -676,27 +694,6 @@ const AdminApprovalPage = () => {
               </div>
               <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
                 <FaTimesCircle className="text-gray-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Tổng giá trị
-                </p>
-                <p className="text-2xl font-bold text-purple-700">
-                  {new Intl.NumberFormat("vi-VN", {
-                    style: "currency",
-                    currency: "VND",
-                    notation: "compact",
-                    maximumFractionDigits: 1
-                  }).format(totalAmount)}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <FaDollarSign className="text-purple-600" />
               </div>
             </div>
           </div>
@@ -833,9 +830,11 @@ const AdminApprovalPage = () => {
                         <span
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
                             invoice.status === STATUS.APPROVED
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-green-50 text-green-700"
                               : invoice.status === STATUS.PENDING
-                              ? "bg-orange-100 text-orange-800"
+                              ? "bg-orange-50 text-orange-700"
+                              : invoice.status === STATUS.REJECTED
+                              ? "bg-red-50 text-red-700"
                               : "bg-gray-100 text-gray-700"
                           }`}
                         >
@@ -995,9 +994,11 @@ const AdminApprovalPage = () => {
                     <span
                       className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
                         viewingInvoice.status === STATUS.APPROVED
-                          ? "bg-green-100 text-green-800"
+                          ? "bg-green-50 text-green-700"
                           : viewingInvoice.status === STATUS.PENDING
-                          ? "bg-orange-100 text-orange-800"
+                          ? "bg-orange-50 text-orange-700"
+                          : viewingInvoice.status === STATUS.REJECTED
+                          ? "bg-red-50 text-red-700"
                           : "bg-gray-100 text-gray-700"
                       }`}
                     >
@@ -1034,6 +1035,20 @@ const AdminApprovalPage = () => {
                 </p>
               </div>
 
+              {viewingInvoice.status === STATUS.REJECTED && (
+                <div className="mt-3 p-3 rounded bg-red-50 border border-red-100">
+                  <div className="text-sm font-semibold text-red-800">
+                    Lý do từ chối
+                  </div>
+                  <div className="text-sm text-red-700 mt-1">
+                    {viewingInvoice.reason ||
+                      viewingInvoice.rejectReason ||
+                      viewingInvoice.rejectedReason ||
+                      "Không có lý do được cung cấp."}
+                  </div>
+                </div>
+              )}
+
               {/* Items table */}
               {viewingInvoice.items && viewingInvoice.items.length > 0 && (
                 <div>
@@ -1047,7 +1062,10 @@ const AdminApprovalPage = () => {
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Sản phẩm
+                              Mã sản phẩm
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Tên sản phẩm
                             </th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                               Số lượng
@@ -1065,6 +1083,9 @@ const AdminApprovalPage = () => {
                             <tr key={index}>
                               <td className="px-4 py-3 text-sm text-gray-900 font-medium">
                                 {item.productCode}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900">
+                                {getProductName(item.productCode)}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900 text-center">
                                 {item.quantity}
@@ -1087,7 +1108,7 @@ const AdminApprovalPage = () => {
                         <tfoot className="bg-gray-50">
                           <tr>
                             <td
-                              colSpan="3"
+                              colSpan="4"
                               className="px-4 py-3 text-right font-bold text-gray-900"
                             >
                               Tổng cộng:

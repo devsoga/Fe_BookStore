@@ -1676,7 +1676,12 @@ const WarehousePage = () => {
                       <strong>Tên:</strong> {editingLot.productName}
                     </p>
                     <p>
-                      <strong>Danh mục:</strong> {editingLot.category}
+                      <strong>Danh mục:</strong>{" "}
+                      {typeof editingLot.category === "object"
+                        ? editingLot.category?.categoryName ||
+                          editingLot.category?.categoryCode ||
+                          "Unknown Category"
+                        : editingLot.category || "Unknown Category"}
                     </p>
                   </div>
                 )}

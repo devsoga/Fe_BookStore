@@ -12,13 +12,13 @@ import Button from "~/components/Button/Button";
 
 // arr select box
 const sortArr = [
-  { title: "Sort by price: low to high", value: "ascending" },
-  { title: "Sort by price: high to low", value: "descending" }
+  { title: "Giá: Thấp đến cao", value: "ascending" },
+  { title: "Giá: Cao đến thấp", value: "descending" }
 ];
 const itemPerPageArr = [
   { title: "9", value: 9 },
   { title: "18", value: 18 },
-  { title: "All", value: 0 }
+  { title: "Tất cả", value: 0 }
 ];
 
 const OurShop = () => {
@@ -79,8 +79,8 @@ const OurShop = () => {
           </div>
         </section>
 
-        {/* Sorting */}
-        <section>
+        {/* Category Filter & Sorting */}
+        <section className="px-3 md:px-0 mt-8">
           <SortProduct
             sortArr={sortArr}
             itemPerPageArr={itemPerPageArr}
@@ -91,7 +91,7 @@ const OurShop = () => {
         </section>
 
         {/* Show products */}
-        <section className="px-3 md:px-0">
+        <section className="px-3 md:px-0 mt-6">
           <ShowAllProduct listProduct={listProductRender} />
         </section>
 

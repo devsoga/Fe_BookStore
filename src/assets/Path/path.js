@@ -6,6 +6,7 @@ export const path = {
   Cart: "/cart",
   Product: "/product/:id",
   Order: "/order",
+  POS: "/admin/pos",
   Admin: "/admin",
 
   // Admin routes

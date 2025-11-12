@@ -55,6 +55,7 @@ const RolesPage = () => {
   });
 
   const itemsPerPage = 10;
+  const { t } = useLanguage();
 
   // Filter and sort data
   const filteredRoles = roles.filter(

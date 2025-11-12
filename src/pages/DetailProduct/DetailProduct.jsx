@@ -18,7 +18,6 @@ const DetailProduct = () => {
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const { setIsOpenSearchFunction } = useContext(SearchContext);
-  console.log(id);
 
   useEffect(() => {
     window.scrollTo(0, 0);

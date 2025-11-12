@@ -15,8 +15,10 @@ const ProductItemInSidebar = ({
   favoriteId = null,
   selectable = false,
   checked = false,
-  onToggle = null
+  onToggle = null,
+  hidePrice = false
 }) => {
+  console.log(item);
   // support multiple incoming item shapes (old and new API)
   const {
     id,
@@ -41,7 +43,34 @@ const ProductItemInSidebar = ({
     image || (Array.isArray(images) ? images[0] : null) || item?.image;
   const displayPrice = unitPrice ?? price ?? 0;
   const displayQuantity = quantityFromItem ?? item?.quantity ?? 1;
-  const displayTotal = totalAmount ?? displayPrice * displayQuantity;
+  // promotion-aware calculations (do not format here)
+  const rawPrice = Number(displayPrice) || 0;
+  let finalUnitPrice = rawPrice;
+  let savedAmount = 0;
+  let savedPercent = 0;
+  // promotion value can come from several shapes: item.promotion.value, item.discountValue, item.discount?.value
+  const promoValueRaw =
+    item?.promotion?.value ??
+    item?.discountValue ??
+    item?.discount?.value ??
+    item?.discountAmount ??
+    null;
+  if (promoValueRaw != null) {
+    const v = Number(promoValueRaw);
+    if (!Number.isNaN(v) && v > 0) {
+      if (v <= 1) {
+        savedPercent = Math.round(v * 100);
+        finalUnitPrice = Math.round(rawPrice * (1 - v));
+        savedAmount = rawPrice - finalUnitPrice;
+      } else {
+        savedAmount = v;
+        finalUnitPrice = Math.max(0, rawPrice - savedAmount);
+        savedPercent =
+          rawPrice > 0 ? Math.round((savedAmount / rawPrice) * 100) : 0;
+      }
+    }
+  }
+  const displayTotal = totalAmount ?? finalUnitPrice * displayQuantity;
   const { toast } = useContext(ToastifyContext);
   const { setIsOnClickFunction, userInfo } = useContext(StoreContext);
   const { formatVND } = useStransferToVND();
@@ -122,11 +151,20 @@ const ProductItemInSidebar = ({
               </label>
             )}
           </div>
-          <img
-            className="w-[70px] h-[85px] object-cover"
-            src={buildImageUrl(displayImage)}
-            alt="Product"
-          />
+          <div className="relative">
+            {(savedAmount > 0 || savedPercent > 0) && (
+              <div className="absolute -top-2 -left-2 bg-red-600 text-white text-xs font-semibold px-2 py-0.5 rounded">
+                {savedAmount > 0
+                  ? `-${formatVND(savedAmount)}`
+                  : `-${savedPercent}%`}
+              </div>
+            )}
+            <img
+              className="w-[70px] h-[85px] object-cover"
+              src={buildImageUrl(displayImage)}
+              alt="Product"
+            />
+          </div>
         </div>
 
         {/* Thông tin */}
@@ -141,19 +179,37 @@ const ProductItemInSidebar = ({
               : String(displayId || "").slice(-5)}
           </p>
 
-          <div className="text-gray-600">
-            <p>
-              {cartId && (
-                <>
-                  <span>{displayQuantity} x </span>
-                </>
+          {!hidePrice && (
+            <div className="text-gray-600">
+              <p>
+                {cartId && (
+                  <>
+                    <span>{displayQuantity} x </span>
+                  </>
+                )}
+                {savedAmount > 0 || savedPercent > 0 ? (
+                  <>
+                    <span className="font-semibold text-red-600">
+                      {formatVND(finalUnitPrice)}
+                    </span>
+                    <span className="text-sm text-gray-400 line-through ml-2">
+                      {formatVND(rawPrice)}
+                    </span>
+                  </>
+                ) : (
+                  <span>{formatVND(finalUnitPrice)}</span>
+                )}
+              </p>
+              {(savedAmount > 0 || savedPercent > 0) && (
+                <p className="text-xs text-red-600">
+                  Tiết kiệm {formatVND(savedAmount)}{" "}
+                  {savedPercent ? `(${savedPercent}%)` : null}
+                </p>
               )}
-              {formatVND(displayPrice)}
-            </p>
-            {/* <p className="font-medium">
-              {formatVND(displayQuantity * displayPrice)}
-            </p> */}
-          </div>
+              {/* per-item total (optional) */}
+              {/* <p className="font-medium">{formatVND(displayTotal)}</p> */}
+            </div>
+          )}
         </div>
 
         {/* Nút X */}

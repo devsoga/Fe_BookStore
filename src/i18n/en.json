@@ -1,0 +1,412 @@
+{
+  "admin": {
+    "dashboard": {
+      "title": "Dashboard",
+      "welcome": "Welcome back!",
+      "subtitle": "Bookstore overview for today",
+      "lastUpdate": "Last updated",
+      "loading": "Loading dashboard data...",
+      "tryAgain": "Try again",
+      "stats": {
+        "totalProducts": "Total Products",
+        "totalOrders": "Total Orders",
+        "totalRevenue": "Total Revenue",
+        "totalCategories": "Total Categories",
+        "totalCustomers": "Total Customers",
+        "totalEmployees": "Total Employees"
+      },
+      "charts": {
+        "revenueOverview": "Revenue Overview",
+        "chartPlaceholder": "Chart will be displayed here"
+      }
+    },
+    "sidebar": {
+      "title": "BookStore Admin",
+      "subtitle": "Store Management",
+      "sections": {
+        "dashboard": "Dashboard",
+        "sales": "Sales",
+        "accountManagement": "Account Management",
+        "customersEmployees": "Customers & Employees",
+        "productsPromotions": "Products & Promotions",
+        "ordersWarehouse": "Orders & Warehouse",
+        "other": "Other"
+      },
+      "menu": {
+        "dashboard": "Dashboard",
+        "pos": "POS - Sales",
+        "roles": "Roles",
+        "accounts": "Accounts",
+        "customerTypes": "Customer Types",
+        "customers": "Customers",
+        "employees": "Employees",
+        "suppliers": "Suppliers",
+        "categories": "Categories",
+        "products": "Products",
+        "promotionTypes": "Promotion Types",
+        "promotions": "Promotions",
+        "orders": "Orders",
+        "promotionOrders": "Promotion Orders",
+        "importInvoices": "Import Invoices",
+        "importDetails": "Approval Import Invoices",
+        "inventory": "Inventory",
+        "priceHistory": "Price History",
+        "comments": "Comments",
+        "returns": "Returns/Exchanges",
+        "comingSoon": "(coming soon)"
+      }
+    },
+    "customers": {
+      "title": "Customer Management",
+      "subtitle": "Manage customer information and orders",
+      "addCustomer": "Add Customer",
+      "editCustomer": "Edit Customer",
+      "viewCustomer": "View Customer Details",
+      "deleteCustomer": "Delete Customer",
+      "searchPlaceholder": "Search by name, email, or phone...",
+      "noCustomers": "No customers found",
+      "stats": {
+        "total": "Total Customers",
+        "active": "Active",
+        "inactive": "Inactive",
+        "vip": "VIP Customers",
+        "searchResults": "Search Results"
+      },
+      "table": {
+        "fullName": "Full Name",
+        "email": "Email",
+        "phone": "Phone",
+        "address": "Address",
+        "joinDate": "Join Date",
+        "totalSpent": "Total Spent",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "form": {
+        "fullName": "Full Name *",
+        "email": "Email *",
+        "phone": "Phone",
+        "address": "Address",
+        "status": "Status",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "buttons": {
+        "view": "View",
+        "edit": "Edit",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "save": "Save",
+        "create": "Create",
+        "update": "Update",
+        "close": "Close"
+      },
+      "messages": {
+        "createSuccess": "Customer created successfully!",
+        "updateSuccess": "Customer updated successfully!",
+        "deleteSuccess": "Customer deleted successfully!",
+        "createError": "Error creating customer",
+        "updateError": "Error updating customer",
+        "deleteError": "Error deleting customer",
+        "loadError": "Cannot load customer data. Please try again.",
+        "deleteConfirm": "Are you sure you want to delete this customer?",
+        "deleteWarning": "This action cannot be undone!"
+      }
+    },
+    "employees": {
+      "title": "Employee Management",
+      "subtitle": "Manage employee information and roles",
+      "addEmployee": "Add Employee",
+      "editEmployee": "Edit Employee",
+      "viewEmployee": "View Employee Details",
+      "deleteEmployee": "Delete Employee",
+      "searchPlaceholder": "Search by name, ID, or department...",
+      "noEmployees": "No employees found",
+      "departments": {
+        "management": "Management",
+        "sales": "Sales",
+        "warehouse": "Warehouse",
+        "support": "Support",
+        "accounting": "Accounting",
+        "marketing": "Marketing",
+        "delivery": "Delivery",
+        "it": "IT"
+      },
+      "stats": {
+        "total": "Total Employees",
+        "active": "Active",
+        "inactive": "Inactive",
+        "managers": "Managers",
+        "searchResults": "Search Results"
+      },
+      "table": {
+        "employeeId": "Employee ID",
+        "fullName": "Full Name",
+        "email": "Email",
+        "phone": "Phone",
+        "department": "Department",
+        "position": "Position",
+        "salary": "Salary",
+        "hireDate": "Hire Date",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "form": {
+        "employeeId": "Employee ID *",
+        "fullName": "Full Name *",
+        "email": "Email *",
+        "phone": "Phone",
+        "address": "Address",
+        "department": "Department *",
+        "position": "Position *",
+        "salary": "Salary *",
+        "status": "Status"
+      }
+    },
+    "customerTypes": {
+      "title": "Customer Type Management",
+      "subtitle": "Manage customer types and corresponding benefits",
+      "addCustomerType": "Add Customer Type",
+      "editCustomerType": "Edit Customer Type",
+      "viewCustomerType": "View Customer Type Details",
+      "deleteCustomerType": "Delete Customer Type",
+      "searchPlaceholder": "Search by name, code, or description...",
+      "noCustomerTypes": "No customer types found",
+      "stats": {
+        "total": "Total Customer Types",
+        "withPromotion": "With Promotion Code",
+        "searchResults": "Search Results"
+      },
+      "table": {
+        "typeCode": "Type Code",
+        "typeName": "Customer Type Name",
+        "promotionCode": "Promotion Code",
+        "description": "Description",
+        "actions": "Actions",
+        "none": "None",
+        "noDescription": "No description"
+      },
+      "form": {
+        "typeCode": "Customer Type Code *",
+        "typeName": "Customer Type Name *",
+        "promotionCode": "Promotion Code",
+        "description": "Description",
+        "typeCodePlaceholder": "e.g., CUS_SILVER",
+        "typeNamePlaceholder": "e.g., Silver Customer",
+        "promotionCodePlaceholder": "e.g., VIP5",
+        "descriptionPlaceholder": "Description about this customer type..."
+      }
+    },
+    "common": {
+      "loading": "Loading...",
+      "error": "Error",
+      "success": "Success",
+      "warning": "Warning",
+      "info": "Information",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "save": "Save",
+      "delete": "Delete",
+      "edit": "Edit",
+      "view": "View",
+      "add": "Add",
+      "create": "Create",
+      "update": "Update",
+      "close": "Close",
+      "search": "Search",
+      "filter": "Filter",
+      "sort": "Sort",
+      "actions": "Actions",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "yes": "Yes",
+      "no": "No",
+      "all": "All",
+      "none": "None",
+      "required": "Required",
+      "optional": "Optional",
+      "page": "Page",
+      "of": "of",
+      "items": "items",
+      "total": "Total",
+      "welcome": "Welcome",
+      "admin": "Admin",
+      "administrator": "Administrator"
+    },
+    "accounts": {
+      "title": "Account Management",
+      "subtitle": "Manage user accounts and permissions",
+      "addAccount": "Add Account",
+      "editAccount": "Edit Account",
+      "deleteAccount": "Delete Account",
+      "searchPlaceholder": "Search by username or email...",
+      "noAccounts": "No accounts found",
+      "table": {
+        "username": "Username",
+        "email": "Email",
+        "role": "Role",
+        "status": "Status",
+        "lastLogin": "Last Login",
+        "createdAt": "Created At",
+        "actions": "Actions"
+      },
+      "form": {
+        "username": "Username *",
+        "email": "Email *",
+        "password": "Password *",
+        "confirmPassword": "Confirm Password *",
+        "role": "Role *",
+        "status": "Status"
+      }
+    },
+    "roles": {
+      "title": "Role Management",
+      "subtitle": "Manage user roles and permissions",
+      "addRole": "Add Role",
+      "editRole": "Edit Role",
+      "deleteRole": "Delete Role",
+      "searchPlaceholder": "Search by name or description...",
+      "noRoles": "No roles found",
+      "table": {
+        "name": "Name",
+        "description": "Description",
+        "permissions": "Permissions",
+        "status": "Status",
+        "createdAt": "Created At",
+        "actions": "Actions"
+      },
+      "form": {
+        "name": "Role Name *",
+        "description": "Description *",
+        "permissions": "Permissions *",
+        "status": "Status"
+      }
+    },
+    "products": {
+      "title": "Product Management",
+      "subtitle": "Manage product catalog and inventory",
+      "addProduct": "Add Product",
+      "editProduct": "Edit Product",
+      "deleteProduct": "Delete Product",
+      "viewProduct": "View Product",
+      "searchPlaceholder": "Search by name, code, or category...",
+      "noProducts": "No products found",
+      "stats": {
+        "total": "Total Products",
+        "inStock": "In Stock",
+        "lowStock": "Low Stock",
+        "outOfStock": "Out of Stock"
+      }
+    },
+    "orders": {
+      "title": "Order Management",
+      "subtitle": "Manage customer orders and fulfillment",
+      "viewOrder": "Order Details",
+      "editOrder": "Edit Order",
+      "deleteOrder": "Delete Order",
+      "deleteConfirm": "Are you sure you want to delete this order?",
+      "updateStatus": "Update Status",
+      "searchPlaceholder": "Search by order ID, customer...",
+      "noOrders": "No orders found",
+      "orderInfo": "Order Information",
+      "customerInfo": "Customer Information",
+      "orderDetails": "Product Details",
+      "customerName": "Customer Name",
+      "phone": "Phone Number",
+      "address": "Address",
+      "product": "Product",
+      "quantity": "Quantity",
+      "price": "Price",
+      "subtotal": "Subtotal",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional notes about the order...",
+      "stats": {
+        "total": "Total Orders",
+        "delivered": "Delivered",
+        "pending": "Pending",
+        "revenue": "Revenue"
+      },
+      "filters": {
+        "allStatuses": "All Statuses",
+        "allPaymentStatuses": "All Payment Statuses",
+        "results": "Results"
+      },
+      "table": {
+        "orderCode": "Order Code",
+        "customer": "Customer",
+        "orderDate": "Order Date",
+        "status": "Status",
+        "paymentStatus": "Payment Status",
+        "totalAmount": "Total Amount"
+      },
+      "messages": {
+        "loadError": "Failed to load orders",
+        "statusUpdateSuccess": "Order status updated successfully!",
+        "statusUpdateError": "Error updating order status",
+        "paymentStatusUpdateSuccess": "Payment status updated successfully!",
+        "paymentStatusUpdateError": "Error updating payment status",
+        "updateSuccess": "Order updated successfully!",
+        "updateError": "Error updating order",
+        "deleteSuccess": "Order deleted successfully!",
+        "deleteError": "Error deleting order"
+      },
+      "status": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "preparing": "Preparing",
+        "shipping": "Shipping",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled",
+        "returned": "Returned"
+      },
+      "paymentStatus": {
+        "pending": "Pending Payment",
+        "paid": "Paid",
+        "failed": "Payment Failed",
+        "refunded": "Refunded"
+      }
+    },
+    "suppliers": {
+      "title": "Supplier Management",
+      "subtitle": "Manage suppliers and vendor relationships",
+      "addSupplier": "Add Supplier",
+      "editSupplier": "Edit Supplier",
+      "deleteSupplier": "Delete Supplier",
+      "searchPlaceholder": "Search by name, contact, or email...",
+      "noSuppliers": "No suppliers found"
+    },
+    "categories": {
+      "title": "Category Management",
+      "subtitle": "Manage product categories and classifications",
+      "addCategory": "Add Category",
+      "editCategory": "Edit Category",
+      "deleteCategory": "Delete Category",
+      "searchPlaceholder": "Search by category name...",
+      "noCategories": "No categories found"
+    },
+    "promotions": {
+      "title": "Promotion Management",
+      "subtitle": "Manage discounts and promotional campaigns",
+      "addPromotion": "Add Promotion",
+      "editPromotion": "Edit Promotion",
+      "deletePromotion": "Delete Promotion",
+      "searchPlaceholder": "Search by promotion name or code...",
+      "noPromotions": "No promotions found"
+    },
+    "inventory": {
+      "title": "Inventory Management",
+      "subtitle": "Manage stock levels and warehouse operations",
+      "updateStock": "Update Stock",
+      "searchPlaceholder": "Search by product name or SKU...",
+      "noInventory": "No inventory items found"
+    },
+    "modal": {
+      "comingSoon": "Coming Soon",
+      "featureInDevelopment": "System is under development. Feature \"{title}\" will be updated in the future.",
+      "confirmDelete": "Confirm Delete",
+      "deleteWarning": "Are you sure you want to delete this item?",
+      "cannotUndo": "This action cannot be undone!"
+    }
+  }
+}

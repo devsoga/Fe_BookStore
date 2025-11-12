@@ -11,6 +11,7 @@ import { historyTransferService } from "~/apis/historyTransferService";
 import { ToastifyContext } from "~/contexts/ToastifyProvider";
 import { useNavigate } from "react-router-dom";
 import OrderSuccess from "~/pages/Cart/component/Content/OrderSuccess";
+import InvoiceModal from "~/components/InvoiceModal/InvoiceModal";
 import { useCopyText } from "~/hooks/useCopyText";
 
 const OrderPayment = () => {
@@ -22,7 +23,9 @@ const OrderPayment = () => {
   const [isCash, setIsCash] = useState(false);
   const { order, setCurrentTab, setOrderFunction } = useContext(StoreContext);
 
-  const { _id, totalPriceOrder } = order;
+  const _id = order?._id || order?.id || order?.orderCode || "";
+  const totalPriceOrder =
+    order?.totalPriceOrder || order?.totalAmount || order?.finalAmount || 0;
   const [isSuccessPayment, setIsSuccessPayment] = useState(false);
   // const imgURL = `https://qr.sepay.vn/img?acc=VQRQADYBO0539&bank=MBBank&amount=${totalPriceOrder}&des=${_id}`;
   const imgURL = `https://qr.sepay.vn/img?acc=VQRQADYBO0539&bank=MBBank&amount=100000&des=$khoinguyen`;
@@ -91,9 +94,19 @@ const OrderPayment = () => {
     };
   }, []);
 
-  if (loading) {
-    handleSuccess("Order successfully!");
+  useEffect(() => {
+    // show invoice modal when the order provided by context is a cash payment
+    if (
+      order &&
+      (order.paymentMethod || "").toString().toLowerCase() === "cash"
+    ) {
+      setIsCash(true);
+    } else {
+      setIsCash(false);
+    }
+  }, [order]);
 
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen space-y-5">
         <div className="w-16 h-16 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
@@ -107,27 +120,42 @@ const OrderPayment = () => {
   return (
     <>
       {isCash && (
-        <div className="flex flex-col text-center items-center justify-center space-y-5 h-full">
-          <h2 className="text-xl">Your order is being processed </h2>
-          <div className="flex space-x-3">
-            <Button
-              onClick={() => {
+        <>
+          <div className="flex flex-col text-center items-center justify-center space-y-5 h-full">
+            <h2 className="text-xl">Your order is being processed </h2>
+            <div className="flex space-x-3">
+              <Button
+                onClick={() => {
+                  navigate("/");
+                }}
+                content={"Go back to shop"}
+              />
+              <Button
+                onClick={() => {
+                  navigate("/order");
+                }}
+                content={"See your order status"}
+                hoverTextColor={"hover:text-white"}
+                bgColor={"bg-transparent"}
+                hoverBgColor={"hover:bg-black"}
+                textColor={"text-black"}
+              />
+            </div>
+          </div>
+
+          {/* show invoice modal for cash orders */}
+          {order && (
+            <InvoiceModal
+              order={order}
+              onClose={() => {
+                // clear order and send user back to shopping
+                setOrderFunction(null);
+                setCurrentTab(0);
                 navigate("/");
               }}
-              content={"Go back to shop"}
             />
-            <Button
-              onClick={() => {
-                navigate("/order");
-              }}
-              content={"See your order status"}
-              hoverTextColor={"hover:text-white"}
-              bgColor={"bg-transparent"}
-              hoverBgColor={"hover:bg-black"}
-              textColor={"text-black"}
-            />
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       {isSuccessPayment && (

@@ -21,6 +21,9 @@ import {
   FaDownload
 } from "react-icons/fa";
 import { supplierService } from "../../../apis/supplierService";
+import Select from "react-select";
+import { productService } from "../../../apis/productService";
+import { buildImageUrl } from "../../../lib/utils";
 import { useNavigate } from "react-router-dom";
 import AdminLayout from "../../../components/Admin/AdminLayout";
 import Modal from "../../../components/Admin/Modal";
@@ -32,6 +35,7 @@ const SuppliersPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
+  const [generatedCode, setGeneratedCode] = useState("");
   const [viewingSupplier, setViewingSupplier] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -43,6 +47,8 @@ const SuppliersPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false });
+  const [products, setProducts] = useState([]);
+  const [productProvideItems, setProductProvideItems] = useState([]);
   const navigate = useNavigate();
 
   // Confirmation modal helpers
@@ -98,6 +104,19 @@ const SuppliersPage = () => {
     });
   };
 
+  const generateSupplierCode = () => {
+    const now = new Date();
+    const code = `NCC${now.getFullYear()}${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}${String(now.getDate()).padStart(2, "0")}${String(
+      now.getHours()
+    ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(
+      now.getSeconds()
+    ).padStart(2, "0")}`;
+    return code;
+  };
+
   // Load suppliers
   const loadSuppliers = async () => {
     try {
@@ -109,7 +128,13 @@ const SuppliersPage = () => {
         ...s,
         phone: s.phone || s.phoneNumber || "",
         phoneNumber: s.phoneNumber || s.phone || "",
-        status: typeof s.status === "boolean" ? s.status : true
+        status: typeof s.status === "boolean" ? s.status : true,
+        // productProvide from API: ensure it's always an array of link records
+        productProvide: Array.isArray(s.productProvide)
+          ? s.productProvide
+          : Array.isArray(s.products)
+          ? s.products
+          : []
       }));
       setSuppliers(suppliersData);
       setFilteredSuppliers(suppliersData);
@@ -119,6 +144,43 @@ const SuppliersPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load products for product selector
+  const loadProducts = async () => {
+    try {
+      const res = await productService.getAllProduct();
+      // normalize: res may be array or axios response
+      let data = [];
+      if (Array.isArray(res)) data = res;
+      else if (res && res.data) data = res.data.data || res.data;
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error loading products:", err);
+    }
+  };
+
+  const addProductProvideItem = () => {
+    setProductProvideItems((prev) => [
+      ...prev,
+      {
+        supplierProductCode: "",
+        productCode: "",
+        productName: "",
+        importPrice: 0,
+        status: true
+      }
+    ]);
+  };
+
+  const removeProductProvideItem = (index) => {
+    setProductProvideItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateProductProvideItem = (index, field, value) => {
+    setProductProvideItems((prev) =>
+      prev.map((it, i) => (i === index ? { ...it, [field]: value } : it))
+    );
   };
 
   // Search and filter
@@ -187,10 +249,13 @@ const SuppliersPage = () => {
 
     const formData = new FormData(e.target);
     // Build payload exactly in the structure requested
-    const supplierCodeFromForm = formData.get("supplierCode");
+    // supplierCode is not editable. When creating use generatedCode, when editing use existing code.
+    const supplierCodeToUse = editingSupplier
+      ? editingSupplier?.supplierCode || formData.get("supplierCode")
+      : generatedCode || generateSupplierCode();
+
     const supplierData = {
-      supplierCode:
-        supplierCodeFromForm || editingSupplier?.supplierCode || undefined,
+      supplierCode: supplierCodeToUse,
       supplierName: formData.get("supplierName"),
       address: formData.get("address"),
       phoneNumber: formData.get("phoneNumber"),
@@ -203,6 +268,23 @@ const SuppliersPage = () => {
     Object.keys(supplierData).forEach((k) => {
       if (supplierData[k] === undefined) delete supplierData[k];
     });
+
+    // include productProvide payload if any rows present
+    if (productProvideItems && productProvideItems.length > 0) {
+      const pp = productProvideItems.map((item, idx) => {
+        const productCode = item.productCode || "";
+        return {
+          supplierProductCode:
+            item.supplierProductCode ||
+            `SP_${supplierCodeToUse}_${productCode}_${idx + 1}`,
+          supplierCode: supplierCodeToUse,
+          productCode: productCode,
+          importPrice: item.importPrice ? Number(item.importPrice) : 0,
+          status: typeof item.status === "boolean" ? item.status : true
+        };
+      });
+      supplierData.productProvide = pp;
+    }
 
     try {
       if (editingSupplier) {
@@ -221,6 +303,8 @@ const SuppliersPage = () => {
 
       setIsModalOpen(false);
       setEditingSupplier(null);
+      setGeneratedCode("");
+      setProductProvideItems([]);
       await loadSuppliers();
     } catch (error) {
       console.error("Error saving supplier:", error);
@@ -236,8 +320,21 @@ const SuppliersPage = () => {
   };
 
   // Handle edit
-  const handleEdit = (supplier) => {
+  const handleEdit = async (supplier) => {
     setEditingSupplier(supplier);
+    setGeneratedCode("");
+    // populate productProvideItems for editing
+    const items = Array.isArray(supplier.productProvide)
+      ? supplier.productProvide.map((pp) => ({
+          supplierProductCode: pp.supplierProductCode || pp.id || "",
+          productCode: pp.productCode || "",
+          productName: pp.productName || pp.name || "",
+          importPrice: pp.importPrice || 0,
+          status: typeof pp.status === "boolean" ? pp.status : true
+        }))
+      : [];
+    setProductProvideItems(items.length ? items : []);
+    await loadProducts();
     setIsModalOpen(true);
   };
 
@@ -324,6 +421,18 @@ const SuppliersPage = () => {
   const activeCount = suppliers.filter((s) => s.status === true).length;
   const inactiveCount = suppliers.filter((s) => s.status === false).length;
 
+  const productOptions = products.map((p) => ({
+    label:
+      p.productName ||
+      p.name ||
+      p.title ||
+      p.productTitle ||
+      p.productNameVN ||
+      "",
+    value: p.productCode || p.code || p.id || "",
+    data: p
+  }));
+
   return (
     <AdminLayout>
       <div className="p-6 bg-gray-50 min-h-screen">
@@ -352,8 +461,22 @@ const SuppliersPage = () => {
                 Xuất Excel
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   setEditingSupplier(null);
+                  const code = generateSupplierCode();
+                  setGeneratedCode(code);
+                  // initialize one empty productProvide row
+                  setProductProvideItems([
+                    {
+                      supplierProductCode: ``,
+                      productCode: ``,
+                      productName: ``,
+                      importPrice: 0,
+                      status: true
+                    }
+                  ]);
+                  // ensure products are loaded for selector
+                  await loadProducts();
                   setIsModalOpen(true);
                 }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -609,11 +732,17 @@ const SuppliersPage = () => {
                             <FaEdit />
                           </button>
                           <button
-                            onClick={() => handleDelete(supplier)}
-                            className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Xóa"
+                            onClick={() => showToggleStatusConfirm(supplier)}
+                            className={`${
+                              supplier.status
+                                ? "text-red-600 hover:text-red-900 hover:bg-red-50"
+                                : "text-green-600 hover:text-green-900 hover:bg-green-50"
+                            } p-2 rounded-lg transition-colors`}
+                            title={
+                              supplier.status ? "Ngưng hoạt động" : "Kích hoạt"
+                            }
                           >
-                            <FaTrash />
+                            {supplier.status ? <FaTimes /> : <FaCheck />}
                           </button>
                         </div>
                       </td>
@@ -640,6 +769,8 @@ const SuppliersPage = () => {
           onClose={() => {
             setIsModalOpen(false);
             setEditingSupplier(null);
+            setGeneratedCode("");
+            setProductProvideItems([]);
           }}
           title={
             <div className="flex items-center gap-3">
@@ -657,7 +788,7 @@ const SuppliersPage = () => {
               </span>
             </div>
           }
-          size="lg"
+          size="xl"
         >
           <form onSubmit={handleSaveSupplier} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -668,23 +799,21 @@ const SuppliersPage = () => {
                 <input
                   type="text"
                   name="supplierCode"
-                  defaultValue={editingSupplier?.supplierCode || ""}
-                  disabled={!!editingSupplier}
-                  readOnly={!!editingSupplier}
+                  defaultValue={
+                    editingSupplier?.supplierCode || generatedCode || ""
+                  }
+                  disabled={true}
+                  readOnly={true}
                   title={
                     editingSupplier
-                      ? "Mã nhà cung cấp được hệ thống quản lý, không thể chỉnh sửa"
-                      : "Nhập mã nhà cung cấp (ví dụ: NCC02)"
+                      ? "Mã nhà cung cấp không thể chỉnh sửa"
+                      : "Mã nhà cung cấp được tự động sinh theo thời gian"
                   }
-                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg ${
-                    editingSupplier
-                      ? "bg-gray-100 cursor-not-allowed"
-                      : "bg-white"
-                  }`}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed`}
                   placeholder={
                     editingSupplier
-                      ? "Mã được tự động tạo hoặc lấy từ dữ liệu (không thể chỉnh sửa)"
-                      : "Nhập mã nhà cung cấp... (ví dụ: NCC02)"
+                      ? "Mã nhà cung cấp (không thể chỉnh sửa)"
+                      : "Mã nhà cung cấp sẽ được tự động sinh khi tạo"
                   }
                 />
               </div>
@@ -773,6 +902,121 @@ const SuppliersPage = () => {
               </label>
             </div>
 
+            {/* ProductProvide editor */}
+            <div>
+              <div className="flex justify-between items-end py-5">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sản phẩm cung cấp
+                </label>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={addProductProvideItem}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Thêm sản phẩm
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">
+                        Sản phẩm
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">
+                        Giá nhập
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">
+                        Trạng thái
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {productProvideItems && productProvideItems.length > 0 ? (
+                      productProvideItems.map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="px-3 py-2">
+                            <select
+                              value={item.productCode}
+                              onChange={(e) =>
+                                updateProductProvideItem(
+                                  idx,
+                                  "productCode",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            >
+                              <option value="">Chọn sản phẩm</option>
+                              {products.map((product) => {
+                                const code =
+                                  product.productCode ||
+                                  product.code ||
+                                  product.id ||
+                                  "";
+                                const name =
+                                  product.productName ||
+                                  product.name ||
+                                  product.title ||
+                                  code;
+                                return (
+                                  <option
+                                    key={code || Math.random()}
+                                    value={code}
+                                  >
+                                    {name} {code ? `(${code})` : ""}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              className="w-full px-3 py-2 border border-gray-300 rounded"
+                              value={item.importPrice}
+                              onChange={(e) =>
+                                updateProductProvideItem(
+                                  idx,
+                                  "importPrice",
+                                  e.target.value
+                                )
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={item.status === true}
+                              onChange={(e) =>
+                                updateProductProvideItem(
+                                  idx,
+                                  "status",
+                                  e.target.checked
+                                )
+                              }
+                            />
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="px-3 py-6 text-center text-gray-500"
+                        >
+                          Chưa có sản phẩm được thêm
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
               <button
                 type="button"
@@ -814,7 +1058,7 @@ const SuppliersPage = () => {
               <span>Chi tiết nhà cung cấp</span>
             </div>
           }
-          size="lg"
+          size="xl"
         >
           {viewingSupplier && (
             <div className="space-y-6">
@@ -881,6 +1125,97 @@ const SuppliersPage = () => {
                   {viewingSupplier.description || "Không có mô tả"}
                 </p>
               </div>
+
+              {/* ProductProvide: list of supplier-product link records */}
+              {viewingSupplier.productProvide &&
+                viewingSupplier.productProvide.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Sản phẩm cung cấp ({viewingSupplier.productProvide.length}
+                      )
+                    </label>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Ảnh
+                            </th>
+
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Mã sản phẩm
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Tên sản phẩm
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Loại sản phẩm
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Giá nhập
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Trạng thái
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {viewingSupplier.productProvide.map((pp, idx) => (
+                            <tr
+                              key={
+                                pp.id ||
+                                pp.supplierProductCode ||
+                                pp.productCode ||
+                                idx
+                              }
+                            >
+                              <td className="px-3 py-2">
+                                {pp.image ? (
+                                  <img
+                                    src={buildImageUrl(pp.image)}
+                                    alt={pp.productName || pp.productCode}
+                                    className="w-12 h-12 object-cover rounded"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
+                                    No Img
+                                  </div>
+                                )}
+                              </td>
+
+                              <td className="px-3 py-2 text-sm text-gray-900">
+                                {pp.productCode || "-"}
+                              </td>
+                              <td className="px-3 py-2 text-sm text-gray-900">
+                                {pp.productName || "-"}
+                              </td>
+                              <td className="px-3 py-2 text-sm text-gray-900">
+                                {pp.categoryName || "-"}
+                              </td>
+                              <td className="px-3 py-2 text-sm text-gray-900">
+                                {new Intl.NumberFormat("vi-VN", {
+                                  style: "currency",
+                                  currency: "VND"
+                                }).format(pp.importPrice || 0)}
+                              </td>
+                              <td className="px-3 py-2 text-sm">
+                                <span
+                                  className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                                    pp.status
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
+                                  {pp.status ? "Hoạt động" : "Ngưng hoạt động"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
               <div className="flex justify-end pt-6 border-t border-gray-200">
                 <button

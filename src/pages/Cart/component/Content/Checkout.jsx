@@ -64,85 +64,68 @@ const Checkout = () => {
       note: Yup.string().max(500, "Note must be less than 500 characters")
     }),
     onSubmit: (values) => {
-      // Map cart items to details array with productCode and quantity
+      // Map cart items to details array with productCode, quantity, and promotionCode
       const details = listItemCart.map((entry) => {
         const it = entry?.item ? entry.item : entry;
         const productCode =
           it.productCode || it.productId || it.id || it._id || "";
         const quantity = Number(it.quantity ?? it.qty ?? 1);
+        const promotionCode = it?.promotionCode || entry?.promotionCode || null;
 
-        return {
+        const detail = {
           productCode,
           quantity
         };
+
+        // Only add promotionCode if it exists and is not null/empty
+        if (promotionCode && promotionCode.trim() !== "") {
+          detail.promotionCode = promotionCode;
+        }
+
+        return detail;
       });
 
-      // Calculate discounts: member discount and coupon discount
-      // Compute subtotal based on discounted prices (if item.discountValue provided)
-      const subtotal =
-        (listItemCart || []).reduce((acc, it) => {
-          const unit = Number(it.unitPrice || it.price || 0);
-          const discountPercent = Number(it.discountValue) || 0;
-          const discountedPrice = unit * (1 - discountPercent);
-          const qty = Number(it.quantity ?? it.qty ?? 1);
-          return acc + discountedPrice * qty;
-        }, 0) || 0;
+      // Extract customer promotion info from userInfo (localStorage)
+      const promotionCustomerCode = userInfo?.promotion_code || null;
+      const promotionCustomerValue = Number(userInfo?.memberDiscount) || 0;
 
-      const memberDiscountPercent = Number(userInfo?.memberDiscount) || 0;
-      const memberDiscountAmount = Number(
-        (subtotal * memberDiscountPercent).toFixed(0)
-      );
-      const couponDiscountAmount =
-        coupon && coupon !== "unvalid" && coupon.value
-          ? Number((subtotal - subtotal * coupon.value).toFixed(0))
+      // Extract coupon info from coupon state (ShoppingCart input)
+      const couponCode =
+        coupon && typeof coupon === "object" && coupon.code
+          ? coupon.code
+          : null;
+      const couponDiscountValue =
+        coupon && typeof coupon === "object" && coupon.value
+          ? Number(coupon.value)
           : 0;
-
-      const totalDiscount = memberDiscountAmount + couponDiscountAmount;
-
-      // Collect promotion codes from products and user info
-      const productPromotionCodes = (listItemCart || []).flatMap((entry) => {
-        const it = entry?.item ? entry.item : entry;
-        const p = it?.promotionCode || it?.promotion_code || it?.promotionCodes;
-        if (!p) return [];
-        return Array.isArray(p) ? p : [p];
-      });
-
-      // include promotion codes from userInfo.promotion_code (if present) + product-level codes
-      const initialUserPromotions = userInfo?.promotion_code
-        ? Array.isArray(userInfo.promotion_code)
-          ? userInfo.promotion_code
-          : [userInfo.promotion_code]
-        : [];
-
-      const promotionCodes = Array.from(
-        new Set(
-          [...initialUserPromotions, ...productPromotionCodes].filter(Boolean)
-        )
-      );
 
       const data = {
         customerCode:
           userInfo?.customerCode || userInfo?._id || userInfo?.userId || "",
         employeeCode: "",
-        // promotionCodes: combine user-level promotions and product-level promotions
-        promotionCodes: promotionCodes,
+        // Customer promotion from userInfo
+        promotionCustomerCode: promotionCustomerCode,
+        promotionCustomerValue: promotionCustomerValue,
+        // Coupon from shopping cart
+        couponCode: couponCode,
+        couponDiscountValue: couponDiscountValue,
         orderType: "Online",
         paymentMethod: values.paymentMethod === "cash" ? "Cash" : "QR",
-        phoneNumber: values.phoneNumber || "",
-        // `discount` field will carry the coupon code (or empty string)
-        discount:
-          coupon && coupon !== "unvalid" && coupon.code ? coupon.code : "",
+        discount: 0, // Set to 0 as per your specification
         note: values.note || "",
-        address:
-          values.address ||
-          `${values.streetAddress || ""}, ${values.city || ""}`,
+        address: values.address || "",
+        phoneNumber: values.phoneNumber || "",
         details: details
       };
 
       orderService
         .createOrder(data)
         .then((res) => {
-          setOrderFunction(res.data);
+          const orderResponse = res.data;
+          // store order in context for OrderPayment step to pick up
+          setOrderFunction(orderResponse.data || orderResponse);
+
+          // Move to Order Status step for both payment methods
           setCurrentTab(2);
           toast.success("Order created successfully!");
         })
@@ -250,10 +233,14 @@ const Checkout = () => {
                   discountValue
                 } = item;
 
-                // Calculate discounted price (discountValue is percentage)
-                const discountPercent = Number(discountValue) || 0;
-                const discountedPrice =
-                  Number(unitPrice) * (1 - discountPercent);
+                // Calculate discounted price: discountValue <=1 is percentage, >1 is fixed amount
+                const dv = Number(discountValue) || 0;
+                let discountedPrice = Number(unitPrice) || 0;
+                if (dv > 1) {
+                  discountedPrice = Math.max(0, Number(unitPrice) - dv);
+                } else if (dv > 0) {
+                  discountedPrice = Number(unitPrice) * (1 - dv);
+                }
                 const displayedTotal = Number(quantity) * discountedPrice;
 
                 return (
@@ -267,7 +254,7 @@ const Checkout = () => {
                       <h2 className="text-xl font-bold">{productName}</h2>
                       <p>
                         {quantity} *{" "}
-                        {discountPercent > 0 ? (
+                        {dv > 0 ? (
                           <span className="flex flex-col">
                             <span className="line-through text-sm text-gray-400">
                               {formatVND(unitPrice)}
@@ -276,7 +263,9 @@ const Checkout = () => {
                               {formatVND(discountedPrice)}
                             </span>
                             <span className="text-xs text-red-500">
-                              -{Math.round(discountPercent * 100)}%
+                              {dv > 1
+                                ? `-${formatVND(dv)}`
+                                : `-${Math.round(dv * 100)}%`}
                             </span>
                           </span>
                         ) : (
@@ -290,6 +279,23 @@ const Checkout = () => {
               })}
 
               <div className="w-full border"></div>
+              {/* coupon info (applied from ShoppingCart) */}
+              {coupon && typeof coupon === "object" && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                  <h3 className="text-green-700 font-medium">{coupon.name}</h3>
+                  {coupon.description && (
+                    <p className="text-green-600 text-sm">
+                      {coupon.description}
+                    </p>
+                  )}
+                  <p className="text-green-600 text-sm">
+                    Discount:{" "}
+                    {coupon.value < 1
+                      ? `${Math.round(coupon.value * 100)}%`
+                      : `${formatVND(coupon.value)}`}
+                  </p>
+                </div>
+              )}
               {/* totals and discounts */}
               {(() => {
                 // Compute original subtotal and discounted subtotal (discountValue is percent)
@@ -303,8 +309,13 @@ const Checkout = () => {
                 const subtotal =
                   (listItemCart || []).reduce((acc, it) => {
                     const unit = Number(it.unitPrice || it.price || 0);
-                    const discountPercent = Number(it.discountValue) || 0;
-                    const discountedPrice = unit * (1 - discountPercent);
+                    const dv = Number(it.discountValue) || 0;
+                    let discountedPrice = unit;
+                    if (dv > 1) {
+                      discountedPrice = Math.max(0, unit - dv);
+                    } else if (dv > 0) {
+                      discountedPrice = unit * (1 - dv);
+                    }
                     const qty = Number(it.quantity ?? it.qty ?? 1);
                     return acc + discountedPrice * qty;
                   }, 0) || 0;
@@ -314,17 +325,34 @@ const Checkout = () => {
                   originalSubtotal - subtotal
                 );
 
+                // 1) Apply customer/member discount (after product-level discounts)
                 const memberDiscountPercent =
                   Number(userInfo?.memberDiscount) || 0;
-                const memberDiscountAmount = Number(
-                  (subtotal * memberDiscountPercent).toFixed(0)
-                );
-                const couponDiscountAmount =
-                  coupon && coupon !== "unvalid" && coupon.value
-                    ? Number((subtotal - subtotal * coupon.value).toFixed(0))
-                    : 0;
-                const finalTotal =
-                  subtotal - memberDiscountAmount - couponDiscountAmount;
+                const afterCustomerDiscount =
+                  subtotal * (1 - memberDiscountPercent);
+                const memberDiscountAmount = subtotal - afterCustomerDiscount;
+
+                // 2) Apply coupon discount on amount after customer discount
+                let couponDiscountAmount = 0;
+                let finalTotal = afterCustomerDiscount;
+                if (coupon && typeof coupon === "object" && coupon.value) {
+                  const couponValue = Number(coupon.value);
+                  if (couponValue < 1) {
+                    // percentage coupon
+                    couponDiscountAmount = afterCustomerDiscount * couponValue;
+                    finalTotal = afterCustomerDiscount - couponDiscountAmount;
+                  } else {
+                    // fixed amount coupon
+                    couponDiscountAmount = Math.min(
+                      couponValue,
+                      afterCustomerDiscount
+                    );
+                    finalTotal = Math.max(
+                      0,
+                      afterCustomerDiscount - couponDiscountAmount
+                    );
+                  }
+                }
 
                 return (
                   <>
@@ -358,22 +386,22 @@ const Checkout = () => {
                     <div className="flex justify-between text-sm text-gray-600">
                       <h2
                         className={
-                          coupon && coupon !== "unvalid"
+                          coupon && typeof coupon === "object"
                             ? "font-medium"
                             : "text-gray-600"
                         }
                       >
-                        {coupon && coupon !== "unvalid"
+                        {coupon && typeof coupon === "object"
                           ? coupon.code
                           : "No coupon"}
                       </h2>
                       <p>
-                        {coupon && coupon !== "unvalid" ? (
+                        {coupon && typeof coupon === "object" ? (
                           <span className="text-red-500">
                             -{formatVND(couponDiscountAmount)}
                           </span>
                         ) : (
-                          <span className="text-red-500">-{formatVND(0)}</span>
+                          <span className="text-gray-400">-</span>
                         )}
                       </p>
                     </div>
@@ -450,6 +478,8 @@ const Checkout = () => {
           </div>
         </div>
       </form>
+
+      {/* Invoice modal is shown on the Order Status step (OrderPayment) now */}
     </>
   );
 };

@@ -68,7 +68,7 @@ const StoreProvider = ({ children }) => {
   };
 
   const [listItemCart, setListItemCart] = useState([]);
-
+  console.log(listItemCart);
   const [countItem, setCountItem] = useState(0); // count of list cart
   // checkout payment
   const [coupon, setCoupon] = useState(null);

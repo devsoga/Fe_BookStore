@@ -21,7 +21,9 @@ const createSupplier = async (data) => {
 };
 
 const updateSupplier = async (id, data) => {
+  console.log(data);
   const result = await axiosClient.post(`/suppliers/update/${id}`, data);
+  // console.log(result);
   return result;
 };
 
