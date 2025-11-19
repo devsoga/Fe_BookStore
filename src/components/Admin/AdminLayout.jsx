@@ -71,14 +71,12 @@ const AdminLayout = ({ children }) => {
         {
           title: t("admin.sidebar.menu.roles"),
           path: "/admin/roles",
-          icon: FaIdCard,
-          comingSoon: true
+          icon: FaIdCard
         },
         {
           title: t("admin.sidebar.menu.accounts"),
           path: "/admin/accounts",
-          icon: FaUsers,
-          comingSoon: true
+          icon: FaUsers
         }
       ]
     },

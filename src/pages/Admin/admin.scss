@@ -44,3 +44,259 @@
 .admin-welcome p {
   color: #6b7280;
 }
+.modal-pop {
+  animation: modal-soft 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.modal-pop-sm {
+  animation: modal-soft 0.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Thông báo: mềm, trôi lên nhẹ nhàng */
+.notif-pop {
+  animation: notif-soft 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Card thông báo chung */
+.notif-card {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #eef2ff, #eff6ff);
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.18);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.notif-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22);
+}
+
+/* Icon tròn bên trái */
+.notif-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 14px;
+}
+
+/* Loại thông báo – đổi màu background + viền + icon */
+.notif-card-success {
+  background: linear-gradient(135deg, #ecfdf3, #dcfce7);
+  border-color: #86efac;
+}
+
+.notif-card-error {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border-color: #fecaca;
+}
+
+.notif-card-info {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border-color: #bfdbfe;
+}
+
+.notif-icon-success {
+  background: #16a34a;
+}
+
+.notif-icon-error {
+  background: #dc2626;
+}
+
+.notif-icon-info {
+  background: #2563eb;
+}
+
+/* Text trong thông báo */
+.notif-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notif-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.notif-message {
+  font-size: 0.85rem;
+  color: #374151;
+  white-space: pre-line;
+}
+
+/* Animation modal chung */
+@keyframes modal-soft {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Animation thông báo – êm, có tí bounce nhẹ */
+@keyframes notif-soft {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+    filter: blur(2px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.02);
+    filter: blur(0.4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+.notify-modal-card {
+  position: relative;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 22px 26px 18px;
+  border-radius: 18px;
+  background: radial-gradient(
+    circle at top left,
+    #eff6ff 0,
+    #ffffff 45%,
+    #f9fafb 100%
+  );
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.28);
+  animation: notify-soft-pop 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.notify-modal-card--success {
+  border-top: 4px solid #22c55e;
+}
+
+.notify-modal-card--error {
+  border-top: 4px solid #ef4444;
+}
+
+.notify-modal-card--warning {
+  border-top: 4px solid #f97316;
+}
+
+.notify-modal-card--info {
+  border-top: 4px solid #3b82f6;
+}
+
+.notify-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.notify-modal-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 22px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.35);
+  background: linear-gradient(135deg, #22c55e, #4ade80);
+}
+
+.notify-modal-card--error .notify-modal-icon {
+  background: linear-gradient(135deg, #ef4444, #f97373);
+  box-shadow: 0 12px 28px rgba(220, 38, 38, 0.5);
+}
+
+.notify-modal-card--warning .notify-modal-icon {
+  background: linear-gradient(135deg, #f97316, #fdba74);
+  box-shadow: 0 12px 28px rgba(234, 88, 12, 0.5);
+}
+
+.notify-modal-card--info .notify-modal-icon {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.5);
+}
+
+.notify-modal-texts {
+  flex: 1;
+}
+
+.notify-modal-title {
+  margin: 2px 0 4px 0;
+  font-size: 1.1rem;
+  font-weight: 650;
+  color: #111827;
+}
+
+.notify-modal-message {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.notify-modal-footer {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.notify-modal-button {
+  padding: 7px 18px;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: #fff;
+  font-weight: 500;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.35);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.notify-modal-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.45);
+  filter: brightness(1.03);
+}
+
+.notify-modal-button:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.35);
+}
+
+@keyframes notify-soft-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+    filter: blur(2px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.02);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}

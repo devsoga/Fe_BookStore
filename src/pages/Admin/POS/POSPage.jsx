@@ -956,7 +956,6 @@ const POSPage = () => {
                                       <FaPlus size={10} />
                                     </button>
                                   </div>
-
                                   <div className="text-right">
                                     <div className="text-sm font-bold text-green-600">
                                       {formatCurrency(subtotal)}đ

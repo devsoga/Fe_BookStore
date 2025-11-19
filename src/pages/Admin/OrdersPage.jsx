@@ -1369,7 +1369,61 @@ const OrdersPage = () => {
                 onClick={() => setShowStatusResultModal(false)}
                 className="px-4 py-2 bg-blue-600 text-white rounded"
               >
-                Đóng
+                <option value="">Tất cả trạng thái</option>
+                {orderStatuses.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </button>
+              <select
+                value={filterPaymentStatus}
+                onChange={(e) => setFilterPaymentStatus(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="">Tất cả thanh toán</option>
+                {paymentStatuses.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4 mb-6">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Từ ngày
+              </label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) =>
+                  setDateRange((prev) => ({ ...prev, start: e.target.value }))
+                }
+                className="border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Đến ngày
+              </label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) =>
+                  setDateRange((prev) => ({ ...prev, end: e.target.value }))
+                }
+                className="border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => setDateRange({ start: "", end: "" })}
+                className="px-3 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Xóa bộ lọc
               </button>
             </div>
           </div>
