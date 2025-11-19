@@ -1,11 +1,13 @@
+// src/pages/admin/EmployeesPage.jsx
 import React, { useState, useEffect } from "react";
 import AdminLayout from "~/components/Admin/AdminLayout";
 import Modal from "~/components/Admin/Modal";
 import { useLanguage } from "~/i18n/AdminLanguageProvider";
 import SearchBar from "~/components/Admin/SearchBar";
 import Pagination from "~/components/Admin/Pagination";
-import mockEmployees from "~/mocks/employees.json";
 import { useStransferToVND } from "~/hooks/useStransferToVND";
+import axiosClient from "~/apis/axiosClient";
+
 import {
   FaPlus,
   FaEdit,
@@ -14,27 +16,23 @@ import {
   FaUsers,
   FaEnvelope,
   FaPhone,
-  FaMapMarkerAlt,
   FaCalendarAlt,
   FaUserCircle,
   FaSpinner,
   FaExclamationTriangle,
-  FaSave,
-  FaTimes,
-  FaSearch,
   FaIdBadge,
   FaDollarSign,
   FaStar,
   FaUser,
   FaTrophy,
-  FaGift,
-  FaShieldAlt,
   FaBriefcase,
   FaBuilding,
   FaCrown,
   FaUserTie,
   FaTools,
-  FaChartLine
+  FaChartLine,
+  FaCheckCircle,
+  FaTimesCircle
 } from "react-icons/fa";
 
 const EmployeesPage = () => {
@@ -72,10 +70,32 @@ const EmployeesPage = () => {
   });
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  // 🔔 Notify modal
+  const [notifyModal, setNotifyModal] = useState({
+    open: false,
+    type: "success", // success | error
+    title: "",
+    message: ""
+  });
+
   const itemsPerPage = 10;
   const { formatVND } = useStransferToVND();
   const { t } = useLanguage();
 
+  const showNotify = (type, title, message) => {
+    setNotifyModal({
+      open: true,
+      type,
+      title,
+      message
+    });
+  };
+
+  const closeNotify = () => {
+    setNotifyModal((prev) => ({ ...prev, open: false }));
+  };
+
+  // Phòng ban hiển thị trên filter
   const departments = [
     t("admin.employees.departments.management"),
     t("admin.employees.departments.sales"),
@@ -87,28 +107,72 @@ const EmployeesPage = () => {
     t("admin.employees.departments.it")
   ];
 
-  // Fetch employees data
+  // Map roleCode -> tên phòng ban hiển thị
+  const mapRoleCodeToDepartment = (roleCode) => {
+    switch (roleCode) {
+      case "ADMIN":
+        return t("admin.employees.departments.management");
+      case "MPOS":
+        return t("admin.employees.departments.sales");
+      case "KT":
+        return t("admin.employees.departments.accounting");
+      default:
+        return t("admin.employees.departments.it");
+    }
+  };
+
+  // ==================== FETCH EMPLOYEES FROM API ====================
   const fetchEmployees = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use mock data for local testing
-      const employeeData = Array.isArray(mockEmployees) ? mockEmployees : [];
-      setEmployees(employeeData);
+      const res = await axiosClient.get("/employees");
+      const rawList = Array.isArray(res.data) ? res.data : res.data.data || [];
 
-      // Calculate statistics
+      const mapped = rawList.map((e) => {
+        const account = e.accountEntity || {};
+        const role = account.roleEntity || {};
+
+        const department = mapRoleCodeToDepartment(role.roleCode);
+
+        return {
+          id: e.id,
+          employeeCode: e.employeeCode,
+          employeeName: e.employeeName,
+          birthDate: e.birthDate,
+          gender: e.gender,
+          created_at: e.createdDate,
+          hire_date: e.createdDate,
+
+          ho_ten: e.employeeName || "",
+          employee_id: e.employeeCode || "",
+          email: account.email || "",
+          phone: account.phoneNumber || "",
+          is_active:
+            typeof account.status === "boolean" ? account.status : true,
+
+          department,
+          position: role.roleName || "",
+          salary: 0,
+          dia_chi: "",
+
+          roleCode: role.roleCode || "",
+          _raw: e
+        };
+      });
+
+      setEmployees(mapped);
+
       const stats = {
-        total: employeeData.length,
-        active: employeeData.filter((e) => e.is_active).length,
-        inactive: employeeData.filter((e) => !e.is_active).length,
-        managers: employeeData.filter(
-          (e) => e.role === "manager" || e.department === "Quản lý"
-        ).length
+        total: mapped.length,
+        active: mapped.filter((e) => e.is_active).length,
+        inactive: mapped.filter((e) => !e.is_active).length,
+        managers: mapped.filter((e) => e.roleCode === "ADMIN").length
       };
       setEmployeeStats(stats);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
+    } catch (err) {
+      console.error("Error fetching employees:", err);
       setError("Không thể tải dữ liệu nhân viên. Vui lòng thử lại.");
     } finally {
       setLoading(false);
@@ -117,9 +181,10 @@ const EmployeesPage = () => {
 
   useEffect(() => {
     fetchEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter and sort data
+  // ==================== FILTER + SORT ====================
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
       !searchTerm ||
@@ -145,13 +210,11 @@ const EmployeesPage = () => {
     let aValue = a[sortConfig.key];
     let bValue = b[sortConfig.key];
 
-    // Handle date sorting
     if (sortConfig.key === "hire_date" || sortConfig.key === "created_at") {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
+      aValue = aValue ? new Date(aValue) : new Date(0);
+      bValue = bValue ? new Date(bValue) : new Date(0);
     }
 
-    // Handle salary sorting
     if (sortConfig.key === "salary") {
       aValue = Number(aValue) || 0;
       bValue = Number(bValue) || 0;
@@ -179,6 +242,7 @@ const EmployeesPage = () => {
     }));
   };
 
+  // ==================== MODALS ====================
   const openCreateModal = () => {
     setEditingEmployee(null);
     setFormData({
@@ -216,40 +280,75 @@ const EmployeesPage = () => {
     setIsViewModalOpen(true);
   };
 
+  // ==================== SUBMIT (UPDATE / CREATE) ====================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
 
     try {
       if (editingEmployee) {
-        // Update employee in mock data
-        setEmployees((prev) =>
-          prev.map((emp) =>
-            emp.id === editingEmployee.id
-              ? { ...emp, ...formData, salary: Number(formData.salary) }
-              : emp
-          )
-        );
-        alert("Cập nhật nhân viên thành công!");
-      } else {
-        // Create new employee in mock data
-        const newEmployee = {
-          id: Math.max(...employees.map((e) => e.id), 0) + 1,
-          ...formData,
-          salary: Number(formData.salary),
-          role: formData.department === "Quản lý" ? "manager" : "employee",
-          hire_date: new Date().toISOString(),
-          created_at: new Date().toISOString()
+        // UPDATE EMPLOYEE
+        const original = editingEmployee._raw || {};
+        const originalAccount = original.accountEntity || {};
+
+        const { authorities, ...accountWithoutAuthorities } = originalAccount;
+
+        const payload = {
+          ...original,
+          employeeName: formData.ho_ten,
+          employeeCode: original.employeeCode,
+          birthDate: original.birthDate,
+          gender: original.gender,
+          accountEntity: {
+            ...accountWithoutAuthorities,
+            phoneNumber: formData.phone,
+            email: formData.email,
+            status: formData.is_active
+          }
         };
-        setEmployees((prev) => [...prev, newEmployee]);
-        alert("Thêm nhân viên thành công!");
+
+        console.log("PUT /employees/" + editingEmployee.id, payload);
+
+        const res = await axiosClient.put(
+          `/employees/${editingEmployee.id}`,
+          payload
+        );
+        console.log("Update employee success:", res.data);
+
+        showNotify(
+          "success",
+          "Cập nhật thành công",
+          "Thông tin nhân viên đã được cập nhật."
+        );
+      } else {
+        // chưa hỗ trợ create
+        showNotify(
+          "error",
+          "Chưa hỗ trợ tạo mới",
+          "Tính năng thêm nhân viên sẽ được cập nhật trong phiên bản sau."
+        );
       }
 
       setIsModalOpen(false);
-      await fetchEmployees(); // Refresh stats
-    } catch (error) {
-      console.error("Error submitting employee:", error);
-      alert("Có lỗi xảy ra. Vui lòng thử lại.");
+      setEditingEmployee(null);
+      await fetchEmployees();
+    } catch (err) {
+      console.error("Error submitting employee:", err);
+      if (err.response) {
+        console.error("Backend error:", err.response.status, err.response.data);
+        showNotify(
+          "error",
+          "Lỗi cập nhật",
+          err.response.data?.message ||
+            `Lỗi ${err.response.status}: yêu cầu không hợp lệ (Bad Request).`
+        );
+      } else {
+        showNotify(
+          "error",
+          "Lỗi hệ thống",
+          "Có lỗi xảy ra khi lưu nhân viên. Vui lòng thử lại."
+        );
+      }
     } finally {
       setSubmitLoading(false);
     }
@@ -257,21 +356,33 @@ const EmployeesPage = () => {
 
   const handleDelete = async (employee) => {
     if (
-      window.confirm(
+      !window.confirm(
         `Bạn có chắc chắn muốn xóa nhân viên "${employee.ho_ten}"?`
       )
     ) {
-      try {
-        setEmployees((prev) => prev.filter((emp) => emp.id !== employee.id));
-        alert("Xóa nhân viên thành công!");
-        await fetchEmployees(); // Refresh stats
-      } catch (error) {
-        console.error("Error deleting employee:", error);
-        alert("Có lỗi xảy ra khi xóa nhân viên.");
-      }
+      return;
+    }
+
+    try {
+      // TODO: khi có API delete thì gọi thật
+      setEmployees((prev) => prev.filter((emp) => emp.id !== employee.id));
+      showNotify(
+        "success",
+        "Xóa nhân viên",
+        "Nhân viên đã được xóa khỏi danh sách (tạm thời chỉ xóa trên giao diện)."
+      );
+      await fetchEmployees();
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      showNotify(
+        "error",
+        "Lỗi xóa nhân viên",
+        "Có lỗi xảy ra khi xóa nhân viên."
+      );
     }
   };
 
+  // ==================== HELPERS ====================
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("vi-VN");
@@ -279,21 +390,21 @@ const EmployeesPage = () => {
 
   const getDepartmentIcon = (department) => {
     switch (department) {
-      case "Quản lý":
+      case t("admin.employees.departments.management"):
         return FaCrown;
-      case "Bán hàng":
+      case t("admin.employees.departments.sales"):
         return FaChartLine;
-      case "Kho":
+      case t("admin.employees.departments.warehouse"):
         return FaBuilding;
-      case "Hỗ trợ":
+      case t("admin.employees.departments.support"):
         return FaUsers;
-      case "Kế toán":
+      case t("admin.employees.departments.accounting"):
         return FaDollarSign;
-      case "Marketing":
+      case t("admin.employees.departments.marketing"):
         return FaStar;
-      case "Giao hàng":
+      case t("admin.employees.departments.delivery"):
         return FaTrophy;
-      case "IT":
+      case t("admin.employees.departments.it"):
         return FaTools;
       default:
         return FaBriefcase;
@@ -302,27 +413,28 @@ const EmployeesPage = () => {
 
   const getDepartmentColor = (department) => {
     switch (department) {
-      case "Quản lý":
+      case t("admin.employees.departments.management"):
         return "bg-purple-100 text-purple-800";
-      case "Bán hàng":
+      case t("admin.employees.departments.sales"):
         return "bg-green-100 text-green-800";
-      case "Kho":
+      case t("admin.employees.departments.warehouse"):
         return "bg-blue-100 text-blue-800";
-      case "Hỗ trợ":
+      case t("admin.employees.departments.support"):
         return "bg-yellow-100 text-yellow-800";
-      case "Kế toán":
+      case t("admin.employees.departments.accounting"):
         return "bg-red-100 text-red-800";
-      case "Marketing":
+      case t("admin.employees.departments.marketing"):
         return "bg-pink-100 text-pink-800";
-      case "Giao hàng":
+      case t("admin.employees.departments.delivery"):
         return "bg-indigo-100 text-indigo-800";
-      case "IT":
+      case t("admin.employees.departments.it"):
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
+  // ==================== LOADING / ERROR ====================
   if (loading) {
     return (
       <AdminLayout>
@@ -381,6 +493,7 @@ const EmployeesPage = () => {
     </div>
   );
 
+  // ==================== UI ====================
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -500,19 +613,6 @@ const EmployeesPage = () => {
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort("salary")}
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>Lương</span>
-                      {sortConfig?.key === "salary" && (
-                        <span className="text-blue-500">
-                          {sortConfig.direction === "asc" ? "↑" : "↓"}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort("hire_date")}
                   >
                     <div className="flex items-center space-x-1">
@@ -591,9 +691,6 @@ const EmployeesPage = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                        {formatVND(employee.salary)}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
                           <FaCalendarAlt className="mr-2 text-gray-400" />
@@ -669,7 +766,7 @@ const EmployeesPage = () => {
         </div>
       </div>
 
-      {/* Create/Edit Modal */}
+      {/* Create / Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -709,7 +806,8 @@ const EmployeesPage = () => {
                   }))
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Nhập mã nhân viên (VD: EMP001)"
+                placeholder="Nhập mã nhân viên (VD: NV_ADMIN)"
+                disabled={!!editingEmployee}
               />
             </div>
           </div>
@@ -745,21 +843,6 @@ const EmployeesPage = () => {
                 placeholder="Nhập số điện thoại"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Địa chỉ
-            </label>
-            <textarea
-              value={formData.dia_chi}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, dia_chi: e.target.value }))
-              }
-              rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Nhập địa chỉ"
-            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -805,23 +888,6 @@ const EmployeesPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mức lương (VND) *
-              </label>
-              <input
-                type="number"
-                required
-                value={formData.salary}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, salary: e.target.value }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Nhập mức lương"
-                min="0"
-              />
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Trạng thái
@@ -872,7 +938,6 @@ const EmployeesPage = () => {
       >
         {viewingEmployee && (
           <div className="space-y-6">
-            {/* Employee Info */}
             <div className="flex items-start space-x-4">
               <div className="flex-shrink-0 h-16 w-16">
                 <div className="h-16 w-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
@@ -930,12 +995,6 @@ const EmployeesPage = () => {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Mức lương</p>
-                    <p className="text-sm font-medium text-green-600">
-                      {formatVND(viewingEmployee.salary)}
-                    </p>
-                  </div>
-                  <div>
                     <p className="text-sm text-gray-500">Ngày vào làm</p>
                     <p className="text-sm font-medium">
                       {formatDate(viewingEmployee.hire_date)}
@@ -960,6 +1019,50 @@ const EmployeesPage = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* 🔔 Notify Modal */}
+      <Modal isOpen={notifyModal.open} onClose={closeNotify} title="" size="sm">
+        <div className="modal-pop max-w-md mx-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 px-6 py-5">
+            <div className="flex items-start gap-4">
+              <div
+                className={`h-11 w-11 flex items-center justify-center rounded-full shadow-md
+                ${
+                  notifyModal.type === "success"
+                    ? "bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-emerald-100"
+                    : "bg-gradient-to-br from-rose-400 to-rose-500 shadow-rose-100"
+                }`}
+              >
+                {notifyModal.type === "success" ? (
+                  <FaCheckCircle className="text-white text-xl" />
+                ) : (
+                  <FaTimesCircle className="text-white text-xl" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-semibold text-slate-900 mb-1">
+                  {notifyModal.title}
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  {notifyModal.message}
+                </p>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={closeNotify}
+                    className="px-4 py-1.5 rounded-full text-sm font-medium
+                    border border-emerald-400/70 text-emerald-700
+                    bg-emerald-50 hover:bg-emerald-100
+                    transition-colors duration-200"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </Modal>
     </AdminLayout>
   );

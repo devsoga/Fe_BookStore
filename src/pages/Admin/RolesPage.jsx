@@ -1,74 +1,122 @@
-import React, { useState } from "react";
+// src/pages/admin/RolesPage.jsx
+import React, { useEffect, useState } from "react";
 import AdminLayout from "~/components/Admin/AdminLayout";
 import Table from "~/components/Admin/Table";
 import Modal from "~/components/Admin/Modal";
 import SearchBar from "~/components/Admin/SearchBar";
 import Pagination from "~/components/Admin/Pagination";
+import axiosClient from "~/apis/axiosClient";
 import { FaPlus, FaShieldAlt } from "react-icons/fa";
 
+// Gợi ý mô tả / quyền hiển thị cho từng roleCode
+const getRoleDescription = (roleCode) => {
+  switch (roleCode) {
+    case "ADMIN":
+      return "Toàn quyền hệ thống (quản lý cấu hình, users, dữ liệu).";
+    case "MPOS":
+      return "Nhân viên bán hàng POS: tạo hóa đơn, xử lý thanh toán.";
+    case "KT":
+      return "Kế toán: quản lý công nợ, báo cáo doanh thu.";
+    case "USER":
+      return "Khách hàng: đặt hàng và xem lịch sử mua hàng.";
+    default:
+      return "Vai trò hệ thống.";
+  }
+};
+
+const getPermissionsLevel = (roleCode) => {
+  switch (roleCode) {
+    case "ADMIN":
+      return "All";
+    case "MPOS":
+    case "KT":
+      return "Limited";
+    case "USER":
+      return "Read-only";
+    default:
+      return "Basic";
+  }
+};
+
 const RolesPage = () => {
-  const [roles, setRoles] = useState([
-    {
-      id: 1,
-      name: "Admin",
-      description: "Full system access",
-      permissions: "All",
-      status: "Active",
-      createdAt: "2024-01-01"
-    },
-    {
-      id: 2,
-      name: "Manager",
-      description: "Manage products and orders",
-      permissions: "Limited",
-      status: "Active",
-      createdAt: "2024-01-02"
-    },
-    {
-      id: 3,
-      name: "Staff",
-      description: "Basic operations",
-      permissions: "Basic",
-      status: "Active",
-      createdAt: "2024-01-03"
-    },
-    {
-      id: 4,
-      name: "Customer",
-      description: "Customer access",
-      permissions: "Read-only",
-      status: "Active",
-      createdAt: "2024-01-04"
-    }
-  ]);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState(null);
+  const [sortConfig, setSortConfig] = useState({
+    key: "roleCode",
+    direction: "asc"
+  });
+
   const [formData, setFormData] = useState({
-    name: "",
+    roleCode: "",
+    roleName: "",
     description: "",
     permissions: "",
     status: "Active"
   });
 
+  const [submitLoading, setSubmitLoading] = useState(false);
   const itemsPerPage = 10;
-  const { t } = useLanguage();
 
-  // Filter and sort data
-  const filteredRoles = roles.filter(
-    (role) =>
-      role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      role.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ===================== FETCH ROLES TỪ BACKEND =====================
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // GET /v1/api/roles
+      const res = await axiosClient.get("/roles");
+      const raw = Array.isArray(res.data) ? res.data : res.data.data || [];
+
+      const mapped = raw.map((r) => {
+        const description = getRoleDescription(r.roleCode);
+        const permissions = getPermissionsLevel(r.roleCode);
+
+        return {
+          id: r.id,
+          roleCode: r.roleCode,
+          roleName: r.roleName,
+          description,
+          permissions,
+          status: "Active", // backend chưa có field status → hiển thị mặc định Active
+          createdAt: r.createdDate || null,
+          _raw: r
+        };
+      });
+
+      setRoles(mapped);
+    } catch (err) {
+      console.error("Error fetching roles:", err);
+      setError("Không thể tải danh sách vai trò. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  // ===================== FILTER + SORT =====================
+  const filteredRoles = roles.filter((role) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      role.roleCode.toLowerCase().includes(term) ||
+      role.roleName.toLowerCase().includes(term) ||
+      role.description.toLowerCase().includes(term)
+    );
+  });
 
   const sortedRoles = [...filteredRoles].sort((a, b) => {
     if (!sortConfig) return 0;
 
-    const aValue = a[sortConfig.key];
-    const bValue = b[sortConfig.key];
+    const aValue = a[sortConfig.key] ?? "";
+    const bValue = b[sortConfig.key] ?? "";
 
     if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
     if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
@@ -83,19 +131,18 @@ const RolesPage = () => {
   );
 
   const handleSort = (key) => {
-    setSortConfig((prevConfig) => ({
+    setSortConfig((prev) => ({
       key,
-      direction:
-        prevConfig?.key === key && prevConfig.direction === "asc"
-          ? "desc"
-          : "asc"
+      direction: prev?.key === key && prev.direction === "asc" ? "desc" : "asc"
     }));
   };
 
+  // ===================== MODAL OPEN/CLOSE =====================
   const openCreateModal = () => {
     setEditingRole(null);
     setFormData({
-      name: "",
+      roleCode: "",
+      roleName: "",
       description: "",
       permissions: "",
       status: "Active"
@@ -105,46 +152,91 @@ const RolesPage = () => {
 
   const openEditModal = (role) => {
     setEditingRole(role);
-    setFormData({ ...role });
+    setFormData({
+      roleCode: role.roleCode,
+      roleName: role.roleName,
+      description: role.description,
+      permissions: role.permissions,
+      status: role.status
+    });
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  // ===================== SUBMIT (CREATE / UPDATE) =====================
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitLoading(true);
 
-    if (editingRole) {
-      // Edit existing role
-      setRoles((prev) =>
-        prev.map((role) =>
-          role.id === editingRole.id
-            ? { ...formData, id: editingRole.id }
-            : role
-        )
-      );
-    } else {
-      // Create new role
-      const newRole = {
-        ...formData,
-        id: Math.max(...roles.map((r) => r.id), 0) + 1,
-        createdAt: new Date().toISOString().split("T")[0]
+    try {
+      const payload = {
+        // Chỉ gửi đúng những field RoleEntity đang có
+        roleCode: formData.roleCode.trim(),
+        roleName: formData.roleName.trim()
       };
-      setRoles((prev) => [...prev, newRole]);
-    }
 
-    setIsModalOpen(false);
+      if (editingRole) {
+        // PUT /v1/api/roles/{id}
+        await axiosClient.put(`/roles/${editingRole.id}`, payload);
+        alert("Cập nhật vai trò thành công!");
+      } else {
+        // POST /v1/api/roles
+        await axiosClient.post("/roles", payload);
+        alert("Tạo vai trò mới thành công!");
+      }
+
+      setIsModalOpen(false);
+      setEditingRole(null);
+      await fetchRoles();
+    } catch (err) {
+      console.error("Error saving role:", err);
+      if (err.response) {
+        alert(
+          err.response.data?.message ||
+            `Lỗi ${err.response.status}: Không thể lưu vai trò.`
+        );
+      } else {
+        alert("Có lỗi xảy ra khi lưu vai trò. Vui lòng thử lại.");
+      }
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
-  const handleDelete = (role) => {
+  // ===================== DELETE =====================
+  const handleDelete = async (role) => {
     if (
-      window.confirm(`Are you sure you want to delete role "${role.name}"?`)
+      !window.confirm(`Bạn có chắc chắn muốn xóa vai trò "${role.roleName}"?`)
     ) {
-      setRoles((prev) => prev.filter((r) => r.id !== role.id));
+      return;
+    }
+
+    try {
+      // DELETE /v1/api/roles/{id}
+      await axiosClient.delete(`/roles/${role.id}`);
+      alert("Xóa vai trò thành công!");
+      await fetchRoles();
+    } catch (err) {
+      console.error("Error deleting role:", err);
+      if (err.response) {
+        alert(
+          err.response.data?.message ||
+            `Lỗi ${err.response.status}: Không thể xóa vai trò.`
+        );
+      } else {
+        alert("Có lỗi xảy ra khi xóa vai trò. Vui lòng thử lại.");
+      }
     }
   };
 
+  // ===================== TABLE CONFIG =====================
   const columns = [
     {
-      key: "name",
+      key: "roleCode",
+      title: "Role Code",
+      sortable: true
+    },
+    {
+      key: "roleName",
       title: "Role Name",
       sortable: true,
       render: (value) => (
@@ -188,8 +280,7 @@ const RolesPage = () => {
           {value}
         </span>
       )
-    },
-    { key: "createdAt", title: "Created At", sortable: true }
+    }
   ];
 
   const actions = {
@@ -197,6 +288,36 @@ const RolesPage = () => {
     delete: handleDelete
   };
 
+  // ===================== LOADING / ERROR =====================
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <p className="text-gray-600">Đang tải danh sách vai trò...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <p className="text-red-600">{error}</p>
+            <button
+              onClick={fetchRoles}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Thử lại
+            </button>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // ===================== UI CHÍNH =====================
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -204,27 +325,29 @@ const RolesPage = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Roles Management
+              Quản lý vai trò
             </h1>
-            <p className="text-gray-600">Manage user roles and permissions</p>
+            <p className="text-gray-600">
+              Quản lý các vai trò người dùng và phân quyền truy cập.
+            </p>
           </div>
           <button
             onClick={openCreateModal}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
           >
             <FaPlus />
-            <span>Add Role</span>
+            <span>Thêm vai trò</span>
           </button>
         </div>
 
-        {/* Search and Filters */}
+        {/* Search */}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <SearchBar
                 value={searchTerm}
                 onChange={setSearchTerm}
-                placeholder="Search roles..."
+                placeholder="Tìm kiếm theo role code, tên role, mô tả..."
               />
             </div>
           </div>
@@ -256,10 +379,26 @@ const RolesPage = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingRole ? "Edit Role" : "Create New Role"}
+        title={editingRole ? "Chỉnh sửa vai trò" : "Tạo vai trò mới"}
         size="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Role Code *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.roleCode}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, roleCode: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="VD: ADMIN, MPOS, KT, USER"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Role Name *
@@ -267,18 +406,19 @@ const RolesPage = () => {
             <input
               type="text"
               required
-              value={formData.name}
+              value={formData.roleName}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
+                setFormData((prev) => ({ ...prev, roleName: e.target.value }))
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter role name"
+              placeholder="Tên hiển thị của vai trò"
             />
           </div>
 
+          {/* description & permissions hiện chỉ dùng cho UI hiển thị */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+              Description (hiển thị)
             </label>
             <textarea
               value={formData.description}
@@ -290,16 +430,15 @@ const RolesPage = () => {
               }
               rows="3"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter role description"
+              placeholder="Mô tả ngắn về quyền hạn của vai trò"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Permissions Level *
+              Permissions Level (hiển thị)
             </label>
             <select
-              required
               value={formData.permissions}
               onChange={(e) =>
                 setFormData((prev) => ({
@@ -309,7 +448,7 @@ const RolesPage = () => {
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">Select permission level</option>
+              <option value="">Chọn mức phân quyền</option>
               <option value="All">All Permissions</option>
               <option value="Limited">Limited Permissions</option>
               <option value="Basic">Basic Permissions</option>
@@ -319,7 +458,7 @@ const RolesPage = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
+              Status (hiển thị)
             </label>
             <select
               value={formData.status}
@@ -338,14 +477,20 @@ const RolesPage = () => {
               type="button"
               onClick={() => setIsModalOpen(false)}
               className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              disabled={submitLoading}
             >
-              Cancel
+              Hủy
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+              disabled={submitLoading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-50"
             >
-              {editingRole ? "Update Role" : "Create Role"}
+              {submitLoading
+                ? "Đang lưu..."
+                : editingRole
+                ? "Cập nhật"
+                : "Tạo mới"}
             </button>
           </div>
         </form>
