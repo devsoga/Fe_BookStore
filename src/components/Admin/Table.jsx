@@ -77,20 +77,49 @@ const Table = ({
               <tr key={row.id || index} className="hover:bg-gray-50">
                 {columns.map((column) => (
                   <td key={column.key} className="px-6 py-4 whitespace-nowrap">
-                    {column.render ? (
-                      // Call render with the full row as both the "value" and the "row"
-                      // to support both older render signatures `render(item)` and
-                      // newer signatures `render(value, item)` used across the app.
-                      column.render(row, row, index)
-                    ) : (
-                      <div className="text-sm text-gray-900">
-                        {typeof row[column.key] === "object"
-                          ? row[column.key]?.toString
-                            ? row[column.key].toString()
-                            : JSON.stringify(row[column.key])
-                          : row[column.key]}
-                      </div>
-                    )}
+                    {(() => {
+                      if (column.render) {
+                        try {
+                          const rendered = column.render(row, row, index);
+                          // If the renderer returned a valid React element, render it directly
+                          if (React.isValidElement(rendered)) return rendered;
+                          // Arrays are valid React children (array of strings/elements)
+                          if (Array.isArray(rendered)) return rendered;
+                          // Primitive types are fine
+                          if (
+                            typeof rendered === "string" ||
+                            typeof rendered === "number" ||
+                            typeof rendered === "boolean" ||
+                            rendered === null ||
+                            rendered === undefined
+                          ) {
+                            return <div className="text-sm text-gray-900">{rendered}</div>;
+                          }
+                          // If renderer returned a plain object, stringify it to avoid React error
+                          return (
+                            <div className="text-sm text-gray-900">
+                              {JSON.stringify(rendered)}
+                            </div>
+                          );
+                        } catch (e) {
+                          console.error("Table render error for column", column.key, e);
+                          return (
+                            <div className="text-sm text-red-600">Render error</div>
+                          );
+                        }
+                      }
+
+                      const cellValue = row[column.key];
+                      if (typeof cellValue === "object") {
+                        if (cellValue == null) return <div />;
+                        if (cellValue.toString && typeof cellValue.toString === "function") {
+                          return <div className="text-sm text-gray-900">{cellValue.toString()}</div>;
+                        }
+                        return <div className="text-sm text-gray-900">{JSON.stringify(cellValue)}</div>;
+                      }
+
+                      return <div className="text-sm text-gray-900">{cellValue}</div>;
+                    })()}
                   </td>
                 ))}
                 {(actions.view || actions.edit || actions.delete) && (
