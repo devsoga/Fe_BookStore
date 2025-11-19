@@ -1,14 +1,10 @@
+// src/pages/admin/CustomersPage.jsx
 import React, { useState, useEffect } from "react";
 import AdminLayout from "~/components/Admin/AdminLayout";
 import Modal from "~/components/Admin/Modal";
 import { useLanguage } from "~/i18n/AdminLanguageProvider";
 import SearchBar from "~/components/Admin/SearchBar";
 import Pagination from "~/components/Admin/Pagination";
-// Using mock data for local testing
-import mockCustomers from "~/mocks/customers.json";
-import mockOrders from "~/mocks/orders.json";
-import { authService } from "~/apis/authService";
-import { orderService } from "~/apis/orderService";
 import { useStransferToVND } from "~/hooks/useStransferToVND";
 import {
   FaPlus,
@@ -18,22 +14,18 @@ import {
   FaUsers,
   FaEnvelope,
   FaPhone,
-  FaMapMarkerAlt,
   FaCalendarAlt,
   FaUserCircle,
   FaSpinner,
   FaExclamationTriangle,
-  FaSave,
-  FaTimes,
-  FaSearch,
-  FaShoppingCart,
-  FaDollarSign,
-  FaStar,
   FaUser,
   FaTrophy,
   FaGift,
-  FaShieldAlt
+  FaShieldAlt,
+  FaCheckCircle,
+  FaTimesCircle
 } from "react-icons/fa";
+import axiosClient from "~/apis/axiosClient";
 
 const CustomersPage = () => {
   const [customers, setCustomers] = useState([]);
@@ -45,17 +37,20 @@ const CustomersPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingCustomer, setViewingCustomer] = useState(null);
   const [editingCustomer, setEditingCustomer] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState(""); // "", "active", "inactive", "vip"
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({
     key: "created_at",
     direction: "desc"
   });
+
   const [formData, setFormData] = useState({
     ho_ten: "",
     email: "",
@@ -65,49 +60,100 @@ const CustomersPage = () => {
   });
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  // 🔔 Notify modal state
+  const [notifyModal, setNotifyModal] = useState({
+    open: false,
+    type: "success", // "success" | "error"
+    title: "",
+    message: ""
+  });
+
   const itemsPerPage = 10;
   const { formatVND } = useStransferToVND();
   const { t } = useLanguage();
 
-  // Fetch customers data
+  // ===== helpers cho notify =====
+  const showNotify = (type, title, message) => {
+    setNotifyModal({
+      open: true,
+      type,
+      title,
+      message
+    });
+  };
+
+  const closeNotify = () => {
+    setNotifyModal((prev) => ({ ...prev, open: false }));
+  };
+
+  // ====================== CALL API BACKEND ======================
   const fetchCustomers = async () => {
     try {
       setLoading(true);
       setError(null);
-      // Use mock data instead of API for local/testing
-      const customerData = Array.isArray(mockCustomers) ? mockCustomers : [];
 
-      // Filter customers (exclude admin/employee roles if present)
-      const filteredCustomers = customerData.filter(
-        (user) => user.role !== "admin" && user.role !== "employee"
-      );
+      const res = await axiosClient.get("/customers");
+      const data = res.data;
+      const rawList = Array.isArray(data) ? data : [];
 
-      setCustomers(filteredCustomers);
+      const mapped = rawList
+        .map((c) => {
+          const account = c.accountEntity || {};
+          const role = account.roleEntity || {};
+          const customerType = c.customerTypeEntity || {};
 
-      // Calculate statistics
+          return {
+            id: c.id,
+            customerCode: c.customerCode,
+            ho_ten: c.customerName || "",
+            email: account.email || "",
+            phone: account.phoneNumber || "",
+            dia_chi: c.address || "",
+            created_at: c.createdDate || null,
+            is_active:
+              typeof account.status === "boolean" ? account.status : true,
+            roleCode: role.roleCode || "",
+            roleName: role.roleName || "",
+            customerTypeCode: customerType.customerTypeCode || "",
+            customerTypeName: customerType.customerTypeName || "",
+            points: c.points ?? 0,
+            _raw: c
+          };
+        })
+        // chỉ lấy khách hàng (role USER / CUS)
+        .filter(
+          (c) => !c.roleCode || c.roleCode === "USER" || c.roleCode === "CUS"
+        );
+
+      setCustomers(mapped);
+
+      const isVipFn = (c) =>
+        ["CUS_SILVER", "CUS_GOLD", "CUS_DIAMOND"].includes(
+          c.customerTypeCode
+        ) || c.points > 200;
+
       const stats = {
-        total: filteredCustomers.length,
-        active: filteredCustomers.filter((c) => c.is_active).length,
-        inactive: filteredCustomers.filter((c) => !c.is_active).length,
-        vip: filteredCustomers.filter(
-          (c) => c.role === "vip" || c.total_spent > 5000000
-        ).length
+        total: mapped.length,
+        active: mapped.filter((c) => c.is_active).length,
+        inactive: mapped.filter((c) => !c.is_active).length,
+        vip: mapped.filter(isVipFn).length
       };
       setCustomerStats(stats);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-      setError(t("admin.customers.messages.loadError"));
+    } catch (err) {
+      console.error("Error fetching customers:", err);
+      setError(
+        t("admin.customers.messages.loadError") ||
+          "Không thể tải dữ liệu khách hàng. Vui lòng thử lại."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch customer orders for detailed view
   const fetchCustomerOrders = async (customerId) => {
     try {
-      // Return orders from mockOrders for the given customer id
-      const orders = Array.isArray(mockOrders) ? mockOrders : [];
-      return orders.filter((order) => order.user_id === customerId);
+      // TODO: thêm API thật khi có
+      return [];
     } catch (error) {
       console.error("Error fetching customer orders:", error);
       return [];
@@ -118,7 +164,7 @@ const CustomersPage = () => {
     fetchCustomers();
   }, []);
 
-  // Filter and sort data
+  // ====================== FILTER + SORT ======================
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
       !searchTerm ||
@@ -126,10 +172,16 @@ const CustomersPage = () => {
       customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone?.toLowerCase().includes(searchTerm.toLowerCase());
 
+    const isVip =
+      ["CUS_SILVER", "CUS_GOLD", "CUS_DIAMOND"].includes(
+        customer.customerTypeCode
+      ) || customer.points > 200;
+
     const matchesStatus =
       !filterStatus ||
       (filterStatus === "active" && customer.is_active) ||
-      (filterStatus === "inactive" && !customer.is_active);
+      (filterStatus === "inactive" && !customer.is_active) ||
+      (filterStatus === "vip" && isVip);
 
     return matchesSearch && matchesStatus;
   });
@@ -140,10 +192,9 @@ const CustomersPage = () => {
     let aValue = a[sortConfig.key];
     let bValue = b[sortConfig.key];
 
-    // Handle date sorting
     if (sortConfig.key === "created_at") {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
+      aValue = aValue ? new Date(aValue) : new Date(0);
+      bValue = bValue ? new Date(bValue) : new Date(0);
     }
 
     if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
@@ -168,6 +219,7 @@ const CustomersPage = () => {
     }));
   };
 
+  // ====================== MODALS ======================
   const openCreateModal = () => {
     setEditingCustomer(null);
     setFormData({
@@ -193,17 +245,18 @@ const CustomersPage = () => {
   };
 
   const openViewModal = async (customer) => {
+    // mở modal ngay, tạm cho orders = []
     setViewingCustomer({
       ...customer,
       orders: []
     });
     setIsViewModalOpen(true);
 
-    // Fetch customer orders
+    // gọi API lấy đơn hàng (sau này)
     const orders = await fetchCustomerOrders(customer.id);
     setViewingCustomer((prev) => ({
       ...prev,
-      orders: orders
+      orders
     }));
   };
 
@@ -213,24 +266,65 @@ const CustomersPage = () => {
 
     try {
       if (editingCustomer) {
-        // Update customer logic would go here if API supports it
-        console.log("Update customer:", formData);
-        alert(
-          "Tính năng chỉnh sửa khách hàng sẽ được cập nhật trong phiên bản sau"
+        // ===== UPDATE CUSTOMER =====
+        const original = editingCustomer._raw || {};
+        const originalAccount = original.accountEntity || {};
+
+        // bỏ authorities để tránh lỗi GrantedAuthority
+        const { authorities, ...accountWithoutAuthorities } = originalAccount;
+
+        const payload = {
+          ...original,
+          customerName: formData.ho_ten,
+          address: formData.dia_chi,
+          customerCode: original.customerCode,
+          accountEntity: {
+            ...accountWithoutAuthorities,
+            phoneNumber: formData.phone,
+            email: formData.email,
+            status: formData.is_active
+          }
+        };
+
+        const res = await axiosClient.put(
+          `/customers/${editingCustomer.id}`,
+          payload
+        );
+        console.log("Update customer success:", res.data);
+
+        showNotify(
+          "success",
+          "Cập nhật thành công",
+          "Thông tin khách hàng đã được cập nhật."
         );
       } else {
-        // Create customer logic would go here if API supports it
-        console.log("Create customer:", formData);
-        alert(
-          "Tính năng tạo khách hàng mới sẽ được cập nhật trong phiên bản sau"
+        // hiện chưa có luồng create rõ ràng
+        showNotify(
+          "error",
+          "Chưa hỗ trợ tạo mới",
+          "Tính năng tạo khách hàng sẽ được cập nhật trong phiên bản sau."
         );
       }
 
       setIsModalOpen(false);
-      await fetchCustomers(); // Refresh data
+      setEditingCustomer(null);
+      await fetchCustomers();
     } catch (error) {
       console.error("Error submitting customer:", error);
-      alert("Có lỗi xảy ra. Vui lòng thử lại.");
+      if (error.response) {
+        showNotify(
+          "error",
+          "Lỗi cập nhật",
+          error.response.data?.message ||
+            `Lỗi ${error.response.status}: yêu cầu không hợp lệ.`
+        );
+      } else {
+        showNotify(
+          "error",
+          "Lỗi hệ thống",
+          "Có lỗi xảy ra khi lưu khách hàng. Vui lòng thử lại."
+        );
+      }
     } finally {
       setSubmitLoading(false);
     }
@@ -243,13 +337,20 @@ const CustomersPage = () => {
       )
     ) {
       try {
-        // Delete customer logic would go here if API supports it
         console.log("Delete customer:", customer.id);
-        alert("Tính năng xóa khách hàng sẽ được cập nhật trong phiên bản sau");
-        await fetchCustomers(); // Refresh data
+        showNotify(
+          "error",
+          "Tính năng đang phát triển",
+          "Xóa khách hàng sẽ được hỗ trợ trong phiên bản sau."
+        );
+        await fetchCustomers();
       } catch (error) {
         console.error("Error deleting customer:", error);
-        alert("Có lỗi xảy ra khi xóa khách hàng.");
+        showNotify(
+          "error",
+          "Lỗi xóa khách hàng",
+          "Có lỗi xảy ra khi xóa khách hàng."
+        );
       }
     }
   };
@@ -290,6 +391,7 @@ const CustomersPage = () => {
     };
   };
 
+  // ====================== LOADING / ERROR ======================
   if (loading) {
     return (
       <AdminLayout>
@@ -322,8 +424,26 @@ const CustomersPage = () => {
     );
   }
 
-  const StatCard = ({ title, value, icon: Icon, color, change }) => (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+  // StatCard có onClick + active để lọc
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    color,
+    change,
+    onClick,
+    active
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left bg-white p-6 rounded-lg border transition
+        ${
+          active
+            ? "border-blue-500 shadow-md ring-2 ring-blue-100"
+            : "border-gray-200 shadow-sm hover:shadow-md"
+        }`}
+    >
       <div className="flex items-center">
         <div className={`p-3 rounded-lg ${color} mr-4`}>
           <Icon className="text-xl text-white" />
@@ -345,9 +465,10 @@ const CustomersPage = () => {
           )}
         </div>
       </div>
-    </div>
+    </button>
   );
 
+  // ====================== UI ======================
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -378,6 +499,11 @@ const CustomersPage = () => {
             icon={FaUsers}
             color="bg-blue-500"
             change={5}
+            onClick={() => {
+              setFilterStatus("");
+              setCurrentPage(1);
+            }}
+            active={filterStatus === ""}
           />
           <StatCard
             title="Đang hoạt động"
@@ -385,6 +511,11 @@ const CustomersPage = () => {
             icon={FaUser}
             color="bg-green-500"
             change={2}
+            onClick={() => {
+              setFilterStatus("active");
+              setCurrentPage(1);
+            }}
+            active={filterStatus === "active"}
           />
           <StatCard
             title="Ngưng hoạt động"
@@ -392,6 +523,11 @@ const CustomersPage = () => {
             icon={FaUserCircle}
             color="bg-red-500"
             change={-1}
+            onClick={() => {
+              setFilterStatus("inactive");
+              setCurrentPage(1);
+            }}
+            active={filterStatus === "inactive"}
           />
           <StatCard
             title="Khách hàng VIP"
@@ -399,6 +535,11 @@ const CustomersPage = () => {
             icon={FaTrophy}
             color="bg-purple-500"
             change={8}
+            onClick={() => {
+              setFilterStatus("vip");
+              setCurrentPage(1);
+            }}
+            active={filterStatus === "vip"}
           />
         </div>
 
@@ -415,12 +556,16 @@ const CustomersPage = () => {
             <div>
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Tất cả trạng thái</option>
                 <option value="active">Đang hoạt động</option>
                 <option value="inactive">Ngưng hoạt động</option>
+                <option value="vip">Khách hàng VIP</option>
               </select>
             </div>
           </div>
@@ -502,7 +647,7 @@ const CustomersPage = () => {
                               </span>
                             </div>
                             <div className="text-sm text-gray-500">
-                              ID: {customer.id}
+                              Mã KH: {customer.customerCode || "N/A"}
                             </div>
                           </div>
                         </div>
@@ -543,6 +688,7 @@ const CustomersPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
+                          {/* NÚT XEM CHI TIẾT */}
                           <button
                             onClick={() => openViewModal(customer)}
                             className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
@@ -550,6 +696,7 @@ const CustomersPage = () => {
                           >
                             <FaEye />
                           </button>
+                          {/* CHỈNH SỬA */}
                           <button
                             onClick={() => openEditModal(customer)}
                             className="text-yellow-600 hover:text-yellow-900 p-1 rounded hover:bg-yellow-50"
@@ -557,6 +704,7 @@ const CustomersPage = () => {
                           >
                             <FaEdit />
                           </button>
+                          {/* XÓA */}
                           <button
                             onClick={() => handleDelete(customer)}
                             className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
@@ -806,6 +954,50 @@ const CustomersPage = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* 🔔 Notify Modal */}
+      <Modal isOpen={notifyModal.open} onClose={closeNotify} title="" size="sm">
+        <div className="modal-pop max-w-md mx-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 px-6 py-5">
+            <div className="flex items-start gap-4">
+              <div
+                className={`h-11 w-11 flex items-center justify-center rounded-full shadow-md
+                ${
+                  notifyModal.type === "success"
+                    ? "bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-emerald-100"
+                    : "bg-gradient-to-br from-rose-400 to-rose-500 shadow-rose-100"
+                }`}
+              >
+                {notifyModal.type === "success" ? (
+                  <FaCheckCircle className="text-white text-xl" />
+                ) : (
+                  <FaTimesCircle className="text-white text-xl" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-semibold text-slate-900 mb-1">
+                  {notifyModal.title}
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  {notifyModal.message}
+                </p>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={closeNotify}
+                    className="px-4 py-1.5 rounded-full text-sm font-medium
+                    border border-emerald-400/70 text-emerald-700
+                    bg-emerald-50 hover:bg-emerald-100
+                    transition-colors duration-200"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </Modal>
     </AdminLayout>
   );
