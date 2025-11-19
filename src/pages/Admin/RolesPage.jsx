@@ -69,9 +69,9 @@ const RolesPage = () => {
       setLoading(true);
       setError(null);
 
-      // GET /v1/api/roles
+      // GET /v1/api/roles  (axiosClient đã có baseUrl '/v1/api')
       const res = await axiosClient.get("/roles");
-      const raw = Array.isArray(res.data) ? res.data : res.data.data || [];
+      const raw = Array.isArray(res.data) ? res.data : res.data?.data || [];
 
       const mapped = raw.map((r) => {
         const description = getRoleDescription(r.roleCode);
@@ -79,11 +79,12 @@ const RolesPage = () => {
 
         return {
           id: r.id,
-          roleCode: r.roleCode,
-          roleName: r.roleName,
+          roleCode: r.roleCode || "",
+          roleName: r.roleName || "",
+          // description / permissions chỉ dùng để hiển thị UI
           description,
           permissions,
-          status: "Active", // backend chưa có field status → hiển thị mặc định Active
+          status: "Active", // backend chưa có field status → mặc định Active
           createdAt: r.createdDate || null,
           _raw: r
         };
@@ -104,12 +105,11 @@ const RolesPage = () => {
 
   // ===================== FILTER + SORT =====================
   const filteredRoles = roles.filter((role) => {
-    const term = searchTerm.toLowerCase();
-    return (
-      role.roleCode.toLowerCase().includes(term) ||
-      role.roleName.toLowerCase().includes(term) ||
-      role.description.toLowerCase().includes(term)
-    );
+    const term = (searchTerm || "").toLowerCase();
+    const code = (role.roleCode || "").toLowerCase();
+    const name = (role.roleName || "").toLowerCase();
+    const desc = (role.description || "").toLowerCase();
+    return code.includes(term) || name.includes(term) || desc.includes(term);
   });
 
   const sortedRoles = [...filteredRoles].sort((a, b) => {
@@ -153,34 +153,49 @@ const RolesPage = () => {
   const openEditModal = (role) => {
     setEditingRole(role);
     setFormData({
-      roleCode: role.roleCode,
-      roleName: role.roleName,
-      description: role.description,
-      permissions: role.permissions,
-      status: role.status
+      roleCode: role.roleCode || "",
+      roleName: role.roleName || "",
+      description: role.description || "",
+      permissions: role.permissions || "",
+      status: role.status || "Active"
     });
     setIsModalOpen(true);
   };
 
+  // ===================== SUBMIT (CREATE / UPDATE) =====================
   // ===================== SUBMIT (CREATE / UPDATE) =====================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
 
     try {
-      const payload = {
-        // Chỉ gửi đúng những field RoleEntity đang có
-        roleCode: formData.roleCode.trim(),
-        roleName: formData.roleName.trim()
-      };
+      const roleCode = formData.roleCode.trim();
+      const roleName = formData.roleName.trim();
+
+      if (!roleCode || !roleName) {
+        alert("Role Code và Role Name không được để trống.");
+        setSubmitLoading(false);
+        return;
+      }
 
       if (editingRole) {
-        // PUT /v1/api/roles/{id}
-        await axiosClient.put(`/roles/${editingRole.id}`, payload);
+        // 🔹 UPDATE: gửi đúng format giống Postman: { id, roleCode, roleName }
+        const payloadUpdate = {
+          id: editingRole.id,
+          roleCode,
+          roleName
+        };
+
+        await axiosClient.put(`/roles/${editingRole.id}`, payloadUpdate);
         alert("Cập nhật vai trò thành công!");
       } else {
-        // POST /v1/api/roles
-        await axiosClient.post("/roles", payload);
+        // 🔹 CREATE: thường chỉ cần roleCode, roleName (không cần id)
+        const payloadCreate = {
+          roleCode,
+          roleName
+        };
+
+        await axiosClient.post("/roles", payloadCreate);
         alert("Tạo vai trò mới thành công!");
       }
 
@@ -211,7 +226,6 @@ const RolesPage = () => {
     }
 
     try {
-      // DELETE /v1/api/roles/{id}
       await axiosClient.delete(`/roles/${role.id}`);
       alert("Xóa vai trò thành công!");
       await fetchRoles();
@@ -233,51 +247,69 @@ const RolesPage = () => {
     {
       key: "roleCode",
       title: "Role Code",
-      sortable: true
+      label: "Role Code",
+      sortable: true,
+      render: (row) => (
+        <span className="font-mono text-sm text-gray-800">{row.roleCode}</span>
+      )
     },
     {
       key: "roleName",
       title: "Role Name",
+      label: "Role Name",
       sortable: true,
-      render: (value) => (
+      render: (row) => (
         <div className="flex items-center">
           <FaShieldAlt className="text-blue-500 mr-2" />
-          <span className="font-medium">{value}</span>
+          <span className="font-medium text-gray-900">{row.roleName}</span>
         </div>
       )
     },
-    { key: "description", title: "Description", sortable: true },
+    {
+      key: "description",
+      title: "Description",
+      label: "Description",
+      sortable: true,
+      render: (row) => (
+        <span className="text-sm text-gray-700">{row.description || "—"}</span>
+      )
+    },
     {
       key: "permissions",
       title: "Permissions",
-      render: (value) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            value === "All"
-              ? "bg-green-100 text-green-800"
-              : value === "Limited"
-              ? "bg-yellow-100 text-yellow-800"
-              : value === "Basic"
-              ? "bg-blue-100 text-blue-800"
-              : "bg-gray-100 text-gray-800"
-          }`}
-        >
-          {value}
-        </span>
-      )
+      label: "Permissions",
+      render: (row) => {
+        const value = row.permissions || "Basic";
+        return (
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-medium ${
+              value === "All"
+                ? "bg-green-100 text-green-800"
+                : value === "Limited"
+                ? "bg-yellow-100 text-yellow-800"
+                : value === "Basic"
+                ? "bg-blue-100 text-blue-800"
+                : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {value}
+          </span>
+        );
+      }
     },
     {
       key: "status",
       title: "Status",
-      render: (value) => (
+      label: "Status",
+      render: (row) => (
         <span
           className={`px-2 py-1 rounded-full text-xs font-medium ${
-            value === "Active"
+            row.status === "Active"
               ? "bg-green-100 text-green-800"
               : "bg-red-100 text-red-800"
           }`}
         >
-          {value}
+          {row.status}
         </span>
       )
     }

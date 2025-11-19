@@ -120,6 +120,7 @@ const CustomersPage = () => {
             _raw: c
           };
         })
+        // chỉ lấy khách hàng (role USER / CUS)
         .filter(
           (c) => !c.roleCode || c.roleCode === "USER" || c.roleCode === "CUS"
         );
@@ -244,16 +245,18 @@ const CustomersPage = () => {
   };
 
   const openViewModal = async (customer) => {
+    // mở modal ngay, tạm cho orders = []
     setViewingCustomer({
       ...customer,
       orders: []
     });
     setIsViewModalOpen(true);
 
+    // gọi API lấy đơn hàng (sau này)
     const orders = await fetchCustomerOrders(customer.id);
     setViewingCustomer((prev) => ({
       ...prev,
-      orders: orders
+      orders
     }));
   };
 
@@ -685,6 +688,7 @@ const CustomersPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
+                          {/* NÚT XEM CHI TIẾT */}
                           <button
                             onClick={() => openViewModal(customer)}
                             className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
@@ -692,6 +696,7 @@ const CustomersPage = () => {
                           >
                             <FaEye />
                           </button>
+                          {/* CHỈNH SỬA */}
                           <button
                             onClick={() => openEditModal(customer)}
                             className="text-yellow-600 hover:text-yellow-900 p-1 rounded hover:bg-yellow-50"
@@ -699,6 +704,7 @@ const CustomersPage = () => {
                           >
                             <FaEdit />
                           </button>
+                          {/* XÓA */}
                           <button
                             onClick={() => handleDelete(customer)}
                             className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"

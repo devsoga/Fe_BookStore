@@ -454,39 +454,48 @@ const AccountsPage = () => {
       key: "username",
       title: "Username",
       sortable: true,
-      render: (value) => (
+      // Table đang truyền cả row vào đây
+      render: (row) => (
         <div className="flex items-center">
           <FaUser className="text-blue-500 mr-2" />
-          <span className="font-medium">{value}</span>
+          <span className="font-medium">{row.username}</span>
         </div>
       )
     },
-    { key: "email", title: "Email", sortable: true },
+    {
+      key: "email",
+      title: "Email",
+      sortable: true,
+      render: (row) => <span>{row.email}</span>
+    },
     {
       key: "role",
       title: "Role",
-      render: (value) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            value === "Admin"
-              ? "bg-red-100 text-red-800"
-              : value === "POS"
-              ? "bg-yellow-100 text-yellow-800"
-              : value === "Accountant"
-              ? "bg-blue-100 text-blue-800"
-              : "bg-gray-100 text-gray-800"
-          }`}
-        >
-          {value}
-        </span>
-      )
+      render: (row) => {
+        const value = row.role;
+        return (
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-medium ${
+              value === "Admin"
+                ? "bg-red-100 text-red-800"
+                : value === "POS"
+                ? "bg-yellow-100 text-yellow-800"
+                : value === "Accountant"
+                ? "bg-blue-100 text-blue-800"
+                : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {value}
+          </span>
+        );
+      }
     },
     {
       key: "ownerName",
       title: "Gán cho",
-      render: (value, row) => (
+      render: (row) => (
         <div className="text-sm">
-          <div className="font-medium">{value || "—"}</div>
+          <div className="font-medium">{row.ownerName || "—"}</div>
           <div className="text-xs text-gray-500">
             {row.ownerType === "Customer"
               ? "Khách hàng"
@@ -500,43 +509,47 @@ const AccountsPage = () => {
     {
       key: "status",
       title: "Status",
-      render: (value, row) => (
-        <button
-          type="button"
-          onClick={() => toggleAccountStatus(row)}
-          className="flex items-center space-x-1"
-        >
-          {value === "Active" ? (
-            <FaToggleOn className="text-green-500 text-xl" />
-          ) : (
-            <FaToggleOff className="text-gray-400 text-xl" />
-          )}
-          <span
-            className={`text-xs font-medium ${
-              value === "Active" ? "text-green-600" : "text-gray-600"
-            }`}
+      render: (row) => {
+        const value = row.status;
+        return (
+          <button
+            type="button"
+            onClick={() => toggleAccountStatus(row)}
+            className="flex items-center space-x-1"
           >
-            {value}
-          </span>
-        </button>
-      )
+            {value === "Active" ? (
+              <FaToggleOn className="text-green-500 text-xl" />
+            ) : (
+              <FaToggleOff className="text-gray-400 text-xl" />
+            )}
+            <span
+              className={`text-xs font-medium ${
+                value === "Active" ? "text-green-600" : "text-gray-600"
+              }`}
+            >
+              {value}
+            </span>
+          </button>
+        );
+      }
     },
     {
       key: "lastLogin",
       title: "Last Login",
       sortable: true,
-      render: (value) => (
-        <span>{value ? formatDateTime(value) : "Chưa đăng nhập"}</span>
+      render: (row) => (
+        <span>
+          {row.lastLogin ? formatDateTime(row.lastLogin) : "Chưa đăng nhập"}
+        </span>
       )
     },
     {
       key: "createdAt",
       title: "Created At",
       sortable: true,
-      render: (value) => <span>{formatDate(value)}</span>
+      render: (row) => <span>{formatDate(row.createdAt)}</span>
     }
   ];
-
   const actions = {
     edit: openEditModal,
     delete: handleDelete
