@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useRef } from "react";
 import { StoreContext } from "~/contexts/StoreProvider";
 import "./style.scss";
 import { MdOutlineFileDownload } from "react-icons/md";
@@ -8,6 +8,7 @@ import Button from "~/components/Button/Button";
 import QrPaymentCountdown from "./QrPaymentCountdown";
 import { orderService } from "~/apis/orderService";
 import { historyTransferService } from "~/apis/historyTransferService";
+import { sepayService } from "~/apis/sepayService";
 import { ToastifyContext } from "~/contexts/ToastifyProvider";
 import { useNavigate } from "react-router-dom";
 import OrderSuccess from "~/pages/Cart/component/Content/OrderSuccess";
@@ -15,7 +16,9 @@ import InvoiceModal from "~/components/InvoiceModal/InvoiceModal";
 import { useCopyText } from "~/hooks/useCopyText";
 
 const OrderPayment = () => {
-  let interval;
+  const pollingRef = useRef(null);
+  const POLL_INTERVAL = 3000; // ms
+  const MAX_POLLING_TIME = 5 * 60 * 1000; // 5 minutes
   const { handleCopy } = useCopyText();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -23,30 +26,38 @@ const OrderPayment = () => {
   const [isCash, setIsCash] = useState(false);
   const { order, setCurrentTab, setOrderFunction } = useContext(StoreContext);
 
-  const _id = order?._id || order?.id || order?.orderCode || "";
-  const totalPriceOrder =
-    order?.totalPriceOrder || order?.totalAmount || order?.finalAmount || 0;
+  const _id = order?.orderCode;
+  const totalPriceOrder = order?.finalAmount;
   const [isSuccessPayment, setIsSuccessPayment] = useState(false);
-  // const imgURL = `https://qr.sepay.vn/img?acc=VQRQADYBO0539&bank=MBBank&amount=${totalPriceOrder}&des=${_id}`;
-  const imgURL = `https://qr.sepay.vn/img?acc=VQRQADYBO0539&bank=MBBank&amount=100000&des=$khoinguyen`;
+  const imgURL = `https://qr.sepay.vn/img?acc=VQRQADYBO0539&bank=MBBank&amount=${totalPriceOrder}&des=${_id}`;
 
   const VAInfo = {
     accountNumber: "VQRQADYBO0539",
     accountOwner: "DANG KHOI NGUYEN"
   };
 
-  const handleExpire = (interval) => {
-    // TODO: khóa đơn/hủy QR/ gọi API tạo QR mới
-    clearInterval(interval);
+  const handleExpire = () => {
+    // Called when countdown expires. Stop polling and inform user.
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    try {
+      localStorage.removeItem("countdownEndTime");
+    } catch (e) {}
     toast.warning("Payment time has expired!");
-
     navigate("/");
   };
 
   const handleSuccess = (message) => {
     toast.success(message);
-    clearInterval(interval);
-    localStorage.removeItem("countdownEndTime");
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    try {
+      localStorage.removeItem("countdownEndTime");
+    } catch (e) {}
   };
 
   // const handleCheckPayment = () => {
@@ -105,6 +116,84 @@ const OrderPayment = () => {
       setIsCash(false);
     }
   }, [order]);
+
+  // Poll Sepay transfers for this order every 3s. Stop when res.data.data != null
+  useEffect(() => {
+    if (!order) return;
+
+    const orderCode = order.orderCode || order?.orderId || _id;
+    if (!orderCode) return;
+
+    // do not poll for cash payments
+    if ((order.paymentMethod || "").toString().toLowerCase() === "cash") return;
+
+    let startTime = Date.now();
+
+    const checkTransfers = async () => {
+      try {
+        // stop if we've exceeded max polling time
+        if (Date.now() - startTime > MAX_POLLING_TIME) {
+          // expire
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          try {
+            localStorage.removeItem("countdownEndTime");
+          } catch (e) {}
+          toast?.warning?.("Payment time has expired!");
+          navigate("/");
+          return;
+        }
+
+        const res = await sepayService.getTransfersByOrder(orderCode);
+        // API may return different shapes; treat any non-null `data.data` as a positive signal
+        const payload = res?.data?.data;
+        const successDetected =
+          payload != null &&
+          (Array.isArray(payload) ? payload.length > 0 : true);
+        if (successDetected) {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          try {
+            localStorage.removeItem("countdownEndTime");
+          } catch (e) {}
+          // persist a small recentOrder summary so OrderSuccess can display it
+          try {
+            const recent = {
+              orderCode: orderCode,
+              finalAmount: order?.finalAmount || order?.totalAmount || null
+            };
+            localStorage.setItem("recentOrder", JSON.stringify(recent));
+            // also set fallback key
+            try {
+              localStorage.setItem("orderCode", String(orderCode));
+            } catch (e) {}
+          } catch (e) {
+            // ignore storage errors
+          }
+          setIsSuccessPayment(true);
+          toast?.success?.("Payment detected. Thank you!");
+        }
+      } catch (err) {
+        // ignore transient errors and continue polling
+        // optional: console.debug("sepay poll error", err);
+      }
+    };
+
+    // initial check then set interval (owned by pollingRef)
+    checkTransfers();
+    pollingRef.current = setInterval(checkTransfers, POLL_INTERVAL);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [order, _id, toast]);
 
   if (loading) {
     return (
@@ -168,7 +257,7 @@ const OrderPayment = () => {
           <div className="w-full">
             <QrPaymentCountdown
               onExpire={() => {
-                handleExpire(interval);
+                handleExpire();
               }}
             />
           </div>

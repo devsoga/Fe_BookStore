@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   FaSearch,
   FaShoppingCart,
@@ -19,13 +19,21 @@ import {
   FaFilter,
   FaUsers,
   FaReceipt,
-  FaGift
+  FaGift,
+  FaQrcode,
+  FaDownload
 } from "react-icons/fa";
+import { BsBank } from "react-icons/bs";
+import { IoCopy } from "react-icons/io5";
 import Modal from "../../../components/Admin/Modal";
 import { useNavigate } from "react-router-dom";
 import { productService } from "../../../apis/productService";
 import promotionService from "../../../apis/promotionService";
 import { orderService } from "../../../apis/orderService";
+import { sepayService } from "../../../apis/sepayService";
+import InvoiceModal from "../../../components/InvoiceModal/InvoiceModal";
+import QrPaymentCountdown from "../../Cart/component/Content/QrPaymentCountdown";
+import { useCopyText } from "../../../hooks/useCopyText";
 import { buildImageUrl } from "../../../lib/utils";
 
 import axiosClient from "../../../apis/axiosClient";
@@ -53,6 +61,7 @@ const POSPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
+  console.log(lastOrder);
   const [activeSection, setActiveSection] = useState("cart"); // 'cart', 'customer', 'discount', 'payment'
   const [showInvoiceInline, setShowInvoiceInline] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -61,12 +70,116 @@ const POSPage = () => {
   const [lookupPhone, setLookupPhone] = useState("");
   const [memberInfo, setMemberInfo] = useState(null); // {name, role, points}
 
+  // Payment modal states
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [showCashModal, setShowCashModal] = useState(false);
+
+  // Sepay QR states
+  const [sepayOrderCode, setSepayOrderCode] = useState(null);
+  const [sepayActive, setSepayActive] = useState(false);
+  const pollingRef = useRef(null);
+  const POLL_INTERVAL = 3000;
+  const MAX_POLLING_TIME = 5 * 60 * 1000;
+  const { handleCopy } = useCopyText();
+
   const navigate = useNavigate();
 
   useEffect(() => {
     loadProducts();
     loadPromotions();
   }, []);
+
+  // Sepay polling effect for QR payments
+  useEffect(() => {
+    if (!sepayActive || !sepayOrderCode) return;
+
+    let startTime = Date.now();
+
+    const checkTransfers = async () => {
+      try {
+        if (Date.now() - startTime > MAX_POLLING_TIME) {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          try {
+            localStorage.removeItem("countdownEndTime");
+          } catch (e) {}
+          setSepayActive(false);
+          setShowQRModal(false);
+          toast.warn("Payment time expired");
+          return;
+        }
+
+        const res = await sepayService.getTransfersByOrder(sepayOrderCode);
+        const payload = res?.data?.data;
+        const successDetected =
+          payload != null &&
+          (Array.isArray(payload) ? payload.length > 0 : true);
+        if (successDetected) {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          try {
+            localStorage.removeItem("countdownEndTime");
+          } catch (e) {}
+          setSepayActive(false);
+          setShowQRModal(false);
+          // fetch order details from server and update lastOrder so InvoiceModal shows real data
+          try {
+            const orderResp = await orderService.getOrderByCode(sepayOrderCode);
+            const serverData =
+              orderResp?.data?.data || orderResp?.data || orderResp;
+            if (serverData) {
+              setLastOrder(serverData);
+              // persist recent order for other components
+              try {
+                const recent = {
+                  orderCode:
+                    serverData.orderCode || serverData.code || serverData.id,
+                  finalAmount:
+                    serverData.finalAmount ||
+                    serverData.totalAmount ||
+                    calculateTotal(),
+                  total: serverData.totalAmount || calculateSubtotal()
+                };
+              } catch (e) {}
+            }
+          } catch (e) {
+            // fallback: keep existing lastOrder
+            console.warn("Failed to fetch order after payment", e);
+          }
+          setShowInvoice(true);
+          clearCart();
+          // Clear customer / member-related UI state so previous customer info
+          // doesn't remain visible in the POS payment area after successful payment.
+          try {
+            setCustomer({ name: "", phone: "", email: "", address: "" });
+            setMemberInfo(null);
+            setLookupPhone("");
+            setReceivedAmount("");
+            setPaymentMethod("cash");
+          } catch (e) {}
+          toast.success("Payment detected. Thank you!");
+        }
+      } catch (err) {
+        // ignore transient errors and continue polling
+      }
+    };
+
+    // initial check then interval
+    checkTransfers();
+    pollingRef.current = setInterval(checkTransfers, POLL_INTERVAL);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [sepayActive, sepayOrderCode]);
 
   const loadProducts = async () => {
     try {
@@ -148,9 +261,10 @@ const POSPage = () => {
     else setCart([...cart, { ...product, quantity: 1 }]);
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (selectedPaymentMethod) => {
+    const method = selectedPaymentMethod || paymentMethod;
     if (cart.length === 0) return toast.error("Giỏ hàng trống!");
-    if (paymentMethod === "cash" && getChange() < 0)
+    if (method === "cash" && getChange() < 0)
       return toast.error("Số tiền nhận không đủ!");
 
     setIsProcessing(true);
@@ -177,8 +291,9 @@ const POSPage = () => {
       }
 
       // Format order data according to API specification
+      // generate client order code to pass to server and use as fallback for QR/invoice
+      const clientOrderCode = `ORD_${Date.now()}`;
       const orderData = {
-        // resolved customer code (from memberInfo, phone lookup, or default)
         customerCode: customerCode,
         employeeCode: "NV_MPOS1", // Default employee code for POS
         promotionCustomerCode: memberInfo?.promotion_code || null,
@@ -186,11 +301,12 @@ const POSPage = () => {
         couponCode: null, // Not used in POS
         couponDiscountValue: null, // Not used in POS
         orderType: "Offline", // POS orders are offline
-        paymentMethod: paymentMethod === "cash" ? "Cash" : "Card",
+        paymentMethod:
+          method === "cash" ? "Cash" : method === "qr" ? "QR" : "Card",
         discount: calculateDiscount(), // Additional discount after product promotions and member discount
-        note: null, // Not used in POS
-        address: null, // Not used in POS
-        phoneNumber: null, // Not used in POS
+        note: customer.address ? "Giao hàng tại: " + customer.address : null,
+        address: customer.address || null,
+        phoneNumber: customer.phone || null,
         details: cart.map((item) => {
           const detail = {
             productCode: item.productCode,
@@ -206,40 +322,83 @@ const POSPage = () => {
 
       const resp = await orderService.createOrder(orderData);
       if (resp && (resp.data || resp.id || resp.orderCode)) {
-        // Create order object for invoice display with enhanced data
+        // Use server response data for order details
+        const serverData = resp.data.data || resp;
         const newOrder = {
-          customerName: customer.name || "Khách lẻ",
-          customerPhone: customer.phone || "",
-          customerEmail: customer.email || "",
-          customerAddress: customer.address || "",
-          paymentMethod,
-          orderDate: new Date().toISOString(),
-          items: cart.map((item) => ({
-            productCode: item.productCode,
-            productName: item.productName,
-            quantity: item.quantity,
-            unitPrice: getDiscountedPrice(item),
-            originalPrice: Number(item.price || 0), // Keep original price for comparison
-            subtotal: getDiscountedPrice(item) * item.quantity
+          // Use server response data first, fallback to local data
+          customerName: serverData.customerName || customer.name || "Khách lẻ",
+          customerPhone: serverData.phoneNumber || customer.phone || "",
+          customerEmail: serverData.customerEmail || customer.email || "",
+          customerAddress: serverData.address || customer.address || "",
+          paymentMethod: serverData.paymentMethod || method,
+          orderDate: serverData.orderDate || new Date().toISOString(),
+          orderStatus: serverData.orderStatus || "completed",
+          isPaid: serverData.isPaid || false,
+          // Use server's calculated amounts
+          totalAmount: serverData.totalAmount || calculateSubtotal(),
+          finalAmount: serverData.finalAmount || calculateTotal(),
+          discount: serverData.discount || calculateDiscount(),
+          // Promotion and coupon info from server
+          promotionCustomerCode: serverData.promotionCustomerCode,
+          promotionCustomerValue: serverData.promotionCustomerValue,
+          couponCode: serverData.couponCode,
+          couponDiscountValue: serverData.couponDiscountValue,
+          // Employee info
+          employeeCode: serverData.employeeCode,
+          employeeName: serverData.employeeName,
+          // Order details with server calculations
+          items: (serverData.details || []).map((detail) => ({
+            orderDetailCode: detail.orderDetailCode,
+            productCode: detail.productCode,
+            productName: detail.productName,
+            image: detail.image,
+            quantity: detail.quantity,
+            unitPrice: detail.unitPrice,
+            totalAmount: detail.totalAmount,
+            promotionCode: detail.promotionCode,
+            discountValue: detail.discountValue,
+            finalPrice: detail.finalPrice
           })),
-          subtotal: calculateSubtotal(),
-          discount: calculateDiscount(),
-          discountType,
-          memberDiscountAmount: memberDiscountAmount,
-          total: calculateTotal(),
+          // POS specific fields
           receivedAmount:
-            paymentMethod === "cash"
+            method === "cash"
               ? Number(receivedAmount)
-              : calculateTotal(),
-          change: paymentMethod === "cash" ? getChange() : 0,
+              : serverData.finalAmount || calculateTotal(),
+          change: method === "cash" ? getChange() : 0,
           status: "completed",
-          id: resp.id || resp.data?.id || Date.now(),
-          orderCode: resp.orderCode || resp.data?.orderCode || `HD${Date.now()}`
+          id: serverData.id || resp.id || Date.now(),
+          orderCode: serverData.orderCode || resp.orderCode || clientOrderCode
         };
 
         setLastOrder(newOrder);
-        setShowInvoice(true);
-        clearCart();
+        // Persist a recent order summary to localStorage so OrderSuccess/OrderPayment can read it
+        try {
+          const recent = {
+            orderCode: newOrder.orderCode,
+            finalAmount:
+              newOrder.finalAmount || newOrder.total || calculateTotal(),
+            total: newOrder.total
+          };
+          localStorage.setItem("recentOrder", JSON.stringify(recent));
+          localStorage.setItem("orderCode", newOrder.orderCode);
+        } catch (e) {
+          // ignore storage errors
+        }
+
+        // Handle different payment methods
+        if (method === "qr") {
+          const serverData = resp.data || resp;
+          const orderCode =
+            serverData.orderCode || resp.orderCode || newOrder.orderCode;
+          setSepayOrderCode(orderCode);
+          setSepayActive(true);
+          setShowQRModal(true);
+          // Don't clear cart yet - wait for payment confirmation
+        } else {
+          // For cash and other methods, show invoice immediately
+          setShowInvoice(true);
+          clearCart();
+        }
         setCustomer({ name: "", phone: "", email: "", address: "" });
         setReceivedAmount("");
         setDiscount(0);
@@ -1220,70 +1379,6 @@ const POSPage = () => {
                         </div>
                       </div>
 
-                      {/* Payment Method */}
-                      <div>
-                        <h3 className="font-semibold text-gray-800 mb-3">
-                          Phương thức thanh toán
-                        </h3>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            onClick={() => setPaymentMethod("cash")}
-                            className={`p-4 rounded-lg border-2 transition-colors ${
-                              paymentMethod === "cash"
-                                ? "border-orange-500 bg-orange-50 text-orange-700"
-                                : "border-gray-200 hover:bg-gray-50"
-                            }`}
-                          >
-                            <FaMoneyBillWave className="mx-auto mb-2 text-2xl" />
-                            <div className="font-medium">Tiền mặt</div>
-                          </button>
-                          <button
-                            onClick={() => setPaymentMethod("card")}
-                            className={`p-4 rounded-lg border-2 transition-colors ${
-                              paymentMethod === "card"
-                                ? "border-orange-500 bg-orange-50 text-orange-700"
-                                : "border-gray-200 hover:bg-gray-50"
-                            }`}
-                          >
-                            <FaCreditCard className="mx-auto mb-2 text-2xl" />
-                            <div className="font-medium">Thẻ</div>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Cash Payment Details */}
-                      {paymentMethod === "cash" && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Số tiền khách đưa
-                          </label>
-                          <input
-                            type="number"
-                            value={receivedAmount}
-                            onChange={(e) => setReceivedAmount(e.target.value)}
-                            placeholder="Nhập số tiền khách đưa..."
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-lg"
-                          />
-                          {receivedAmount && (
-                            <div className="mt-3 p-3 bg-orange-50 rounded-lg">
-                              <div className="flex justify-between items-center">
-                                <span className="text-orange-700 font-medium">
-                                  Tiền thừa:
-                                </span>
-                                <span className="text-2xl font-bold text-orange-800">
-                                  {formatCurrency(getChange())}đ
-                                </span>
-                              </div>
-                              {getChange() < 0 && (
-                                <div className="text-red-600 text-sm mt-1">
-                                  ⚠️ Số tiền nhận không đủ!
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                       {/* Customer Info Preview */}
                       {(customer.name || customer.phone) && (
                         <div className="bg-blue-50 rounded-lg p-3">
@@ -1299,11 +1394,8 @@ const POSPage = () => {
 
                       {/* Checkout Button */}
                       <button
-                        onClick={handleCheckout}
-                        disabled={
-                          isProcessing ||
-                          (paymentMethod === "cash" && getChange() < 0)
-                        }
+                        onClick={() => setShowPaymentModal(true)}
+                        disabled={isProcessing || cart.length === 0}
                         className="w-full bg-gradient-to-r from-orange-600 to-orange-700 text-white py-4 rounded-lg text-lg font-bold hover:from-orange-700 hover:to-orange-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
                       >
                         <FaCheck />
@@ -1459,6 +1551,391 @@ const POSPage = () => {
             if (invoiceContent) {
               window.print();
             }
+          }}
+        />
+      )}
+
+      {/* Payment Method Selection Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[90%] max-w-lg mx-4 transform transition-all">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FaCreditCard className="text-white text-2xl" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                Chọn phương thức thanh toán
+              </h3>
+              <p className="text-gray-600">
+                Vui lòng chọn cách thức thanh toán phù hợp
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* Cash Payment */}
+              <button
+                onClick={async () => {
+                  // Open a dedicated cash modal to enter received amount
+                  setShowPaymentModal(false);
+                  setShowCashModal(true);
+                }}
+                className="group p-6 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all duration-300 flex flex-col items-center space-y-3"
+              >
+                <div className="w-12 h-12 bg-green-100 group-hover:bg-green-200 rounded-full flex items-center justify-center transition-colors">
+                  <FaMoneyBillWave className="text-green-600 text-xl" />
+                </div>
+                <div className="text-center">
+                  <h4 className="font-semibold text-gray-800 group-hover:text-green-700">
+                    Tiền mặt
+                  </h4>
+                  <p className="text-sm text-gray-500">Thanh toán trực tiếp</p>
+                </div>
+              </button>
+
+              {/* QR Payment */}
+              <button
+                onClick={async () => {
+                  setShowPaymentModal(false);
+                  await handleCheckout("qr");
+                }}
+                className="group p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 flex flex-col items-center space-y-3"
+              >
+                <div className="w-12 h-12 bg-blue-100 group-hover:bg-blue-200 rounded-full flex items-center justify-center transition-colors">
+                  <FaQrcode className="text-blue-600 text-xl" />
+                </div>
+                <div className="text-center">
+                  <h4 className="font-semibold text-gray-800 group-hover:text-blue-700">
+                    QR Code
+                  </h4>
+                  <p className="text-sm text-gray-500">Chuyển khoản nhanh</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center space-x-2"
+              >
+                <FaTimes className="text-sm" />
+                <span>Hủy bỏ</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash Payment Modal (enter amount given & confirm) */}
+      {showCashModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-[90%] max-w-md mx-4">
+            <h3 className="text-xl font-bold mb-4">Thanh toán tiền mặt</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-gray-600">
+                  Tổng cần thanh toán
+                </label>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(calculateTotal())}đ
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-600">Khách đưa</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={receivedAmount}
+                  onChange={(e) => setReceivedAmount(e.target.value)}
+                  className="w-full border p-3 rounded-lg mt-1"
+                  placeholder="Nhập số tiền khách đưa"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-600">Tiền thừa</label>
+                <div
+                  className={`text-lg font-semibold ${
+                    getChange() < 0 ? "text-red-600" : "text-green-600"
+                  }`}
+                >
+                  {formatCurrency(getChange())}đ
+                </div>
+                {getChange() < 0 && (
+                  <div className="text-sm text-red-600">
+                    Số tiền khách đưa chưa đủ
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCashModal(false);
+                }}
+                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={async () => {
+                  // require enough payment
+                  if (getChange() < 0) return toast.error("Số tiền chưa đủ");
+                  setShowCashModal(false);
+                  await handleCheckout("cash");
+                  // allow invoice to render then print
+                  setTimeout(() => {
+                    const invoiceContent =
+                      document.getElementById("invoice-content");
+                    if (invoiceContent) window.print();
+                  }, 500);
+                }}
+                className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700"
+              >
+                Xác nhận & In hóa đơn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Payment Modal */}
+      {showQRModal && sepayOrderCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-5xl mx-4 transform transition-all max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <BsBank className="text-xl" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Thanh toán QR Code</h3>
+                    <p className="text-blue-100">Quét mã để chuyển khoản</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (pollingRef.current) {
+                      clearInterval(pollingRef.current);
+                      pollingRef.current = null;
+                    }
+                    setSepayActive(false);
+                    setShowQRModal(false);
+                  }}
+                  className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-colors"
+                >
+                  <FaTimes className="text-xl" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              {/* Countdown */}
+              <div className="mb-6">
+                <QrPaymentCountdown
+                  onExpire={() => {
+                    if (pollingRef.current) {
+                      clearInterval(pollingRef.current);
+                      pollingRef.current = null;
+                    }
+                    try {
+                      localStorage.removeItem("countdownEndTime");
+                    } catch (e) {}
+                    setSepayActive(false);
+                    setShowQRModal(false);
+                    toast.warn("Payment time expired");
+                  }}
+                />
+              </div>
+
+              {/* Waiting indicator */}
+              <div className="flex flex-col items-center justify-center mb-6">
+                <div className="w-12 h-12 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin mb-3"></div>
+                <p className="text-gray-600 font-medium">
+                  Đang chờ thanh toán...
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* QR Code Section */}
+                <div className="flex flex-col items-center space-y-4">
+                  <h4 className="text-xl font-bold text-gray-800 mb-2">
+                    Quét mã QR để thanh toán
+                  </h4>
+                  <div className="bg-white p-4 rounded-2xl shadow-lg border-2 border-gray-100">
+                    <div className="w-64 h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden relative">
+                      <img
+                        src={`https://qr.sepay.vn/img?acc=VQRQADYBO0539&bank=MBBank&amount=${
+                          lastOrder?.finalAmount || calculateTotal()
+                        }&des=${lastOrder?.orderCode || sepayOrderCode}`}
+                        alt="QR Code"
+                        className="w-full h-full object-contain"
+                      />
+                      {/* Scan effect */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500 via-opacity-20 to-transparent animate-pulse"></div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Download QR code functionality
+                      const link = document.createElement("a");
+                      const orderCodeForTransfer =
+                        lastOrder?.orderCode || sepayOrderCode;
+                      link.href = `https://qr.sepay.vn/img?acc=VQRQADYBO0539&bank=MBBank&amount=${
+                        lastOrder?.finalAmount || calculateTotal()
+                      }&des=${orderCodeForTransfer}`;
+                      link.download = `qr-${orderCodeForTransfer}.png`;
+                      link.click();
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                  >
+                    <FaDownload />
+                    <span>Tải xuống QR</span>
+                  </button>
+                </div>
+
+                {/* Bank Info Section */}
+                <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6 rounded-2xl">
+                  <div className="flex items-center space-x-3 mb-6">
+                    <div className="w-12 h-12 bg-white bg-opacity-10 rounded-full flex items-center justify-center">
+                      <BsBank className="text-2xl" />
+                    </div>
+                    <div>
+                      <h4 className="text-2xl font-bold">MBBank</h4>
+                      <p className="text-gray-300">Chuyển khoản ngân hàng</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Account Owner */}
+                    <div className="flex justify-between items-center py-3 border-b border-gray-600">
+                      <span className="text-gray-300 text-sm uppercase tracking-wide">
+                        Chủ tài khoản
+                      </span>
+                      <div className="text-right">
+                        <p className="font-bold">DANG KHOI NGUYEN</p>
+                      </div>
+                    </div>
+
+                    {/* Account Number */}
+                    <div className="flex justify-between items-center py-3 border-b border-gray-600">
+                      <span className="text-gray-300 text-sm uppercase tracking-wide">
+                        Số tài khoản
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-bold">VQRQADYBO0539</p>
+                        <button
+                          onClick={() => handleCopy("VQRQADYBO0539")}
+                          className="text-blue-400 hover:text-blue-300 p-1 rounded transition-colors"
+                        >
+                          <IoCopy />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Amount */}
+                    <div className="flex justify-between items-center py-3 border-b border-gray-600">
+                      <span className="text-gray-300 text-sm uppercase tracking-wide">
+                        Số tiền
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-bold text-green-400">
+                          {formatCurrency(
+                            lastOrder?.finalAmount || calculateTotal()
+                          )}{" "}
+                          VND
+                        </p>
+                        <button
+                          onClick={() =>
+                            handleCopy(
+                              (
+                                lastOrder?.finalAmount || calculateTotal()
+                              ).toString()
+                            )
+                          }
+                          className="text-blue-400 hover:text-blue-300 p-1 rounded transition-colors"
+                        >
+                          <IoCopy />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Transfer Content */}
+                    <div className="flex justify-between items-center py-3">
+                      <span className="text-gray-300 text-sm uppercase tracking-wide">
+                        Nội dung chuyển khoản
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-bold text-yellow-400">
+                          {lastOrder?.orderCode || sepayOrderCode}
+                        </p>
+                        <button
+                          onClick={() =>
+                            handleCopy(lastOrder?.orderCode || sepayOrderCode)
+                          }
+                          className="text-blue-400 hover:text-blue-300 p-1 rounded transition-colors"
+                        >
+                          <IoCopy />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  <div className="mt-6 pt-4 border-t border-gray-600">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xl font-bold uppercase">
+                        Tổng thanh toán
+                      </span>
+                      <span className="text-2xl font-bold text-green-400">
+                        {formatCurrency(
+                          lastOrder?.finalAmount || calculateTotal()
+                        )}{" "}
+                        VND
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-white text-xs font-bold">!</span>
+                  </div>
+                  <div>
+                    <h5 className="font-semibold text-blue-800 mb-1">
+                      Hướng dẫn thanh toán
+                    </h5>
+                    <ul className="text-blue-700 text-sm space-y-1">
+                      <li>• Mở ứng dụng ngân hàng và quét mã QR</li>
+                      <li>• Kiểm tra thông tin và xác nhận chuyển khoản</li>
+                      <li>• Hệ thống sẽ tự động xác nhận khi nhận được tiền</li>
+                      <li>
+                        • <strong>Lưu ý:</strong> Nhập chính xác nội dung chuyển
+                        khoản
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash Invoice Modal */}
+      {showInvoice && lastOrder && lastOrder.paymentMethod === "cash" && (
+        <InvoiceModal
+          order={lastOrder}
+          onClose={() => {
+            setShowInvoice(false);
+            setLastOrder(null);
           }}
         />
       )}

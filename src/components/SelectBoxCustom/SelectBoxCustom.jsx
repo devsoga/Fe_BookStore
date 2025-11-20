@@ -1,16 +1,19 @@
 import React from "react";
 
-const SelectBoxCustom = ({ selectOptions, getValue, type }) => {
+const SelectBoxCustom = ({ selectOptions, getValue, type, value }) => {
   return (
-    <div className="relative border ">
+    <div className="relative border w-full">
       <select
+        value={value}
         onChange={(e) => {
           getValue(e.target.value, type);
         }}
         className="appearance-none py-2 pl-2 pr-8 outline-none borde w-full cursor-pointer"
       >
-        {selectOptions.map((item) => (
-          <option value={item.value}>{item.title}</option>
+        {selectOptions.map((item, idx) => (
+          <option key={idx} value={item.value}>
+            {item.title}
+          </option>
         ))}
       </select>
       <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">

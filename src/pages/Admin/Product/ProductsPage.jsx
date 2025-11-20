@@ -174,6 +174,92 @@ const ProductsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Real-time filtering effect
+  useEffect(() => {
+    if (!Array.isArray(products)) {
+      setFilteredProducts([]);
+      return;
+    }
+
+    let filtered = [...products];
+
+    // Filter by search term
+    if (searchTerm && searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter((product) => {
+        const name = (product.productName || "").toLowerCase();
+        const code = (product.productCode || "").toLowerCase();
+        const author = (product.author || "").toLowerCase();
+        const description = (product.description || "").toLowerCase();
+        return (
+          name.includes(term) ||
+          code.includes(term) ||
+          author.includes(term) ||
+          description.includes(term)
+        );
+      });
+    }
+
+    // Filter by category
+    if (filterCategory && filterCategory.trim()) {
+      filtered = filtered.filter(
+        (product) => product.categoryCode === filterCategory
+      );
+    }
+
+    // Filter by price range
+    if (priceRange.min !== "" || priceRange.max !== "") {
+      filtered = filtered.filter((product) => {
+        const price = Number(product.price) || 0;
+        const minPrice = priceRange.min !== "" ? Number(priceRange.min) : 0;
+        const maxPrice =
+          priceRange.max !== "" ? Number(priceRange.max) : Infinity;
+        return price >= minPrice && price <= maxPrice;
+      });
+    }
+
+    // Sort products
+    const { key, direction } = sortConfig;
+    if (key && direction) {
+      filtered.sort((a, b) => {
+        let aVal, bVal;
+
+        switch (key) {
+          case "productName":
+            aVal = (a.productName || "").toLowerCase();
+            bVal = (b.productName || "").toLowerCase();
+            break;
+          case "price":
+            aVal = Number(a.price) || 0;
+            bVal = Number(b.price) || 0;
+            break;
+          case "stock":
+            aVal = Number(a.stock ?? a.stockQuantity) || 0;
+            bVal = Number(b.stock ?? b.stockQuantity) || 0;
+            break;
+          case "productCode":
+            aVal = (a.productCode || "").toLowerCase();
+            bVal = (b.productCode || "").toLowerCase();
+            break;
+          default:
+            aVal = a[key] || "";
+            bVal = b[key] || "";
+        }
+
+        if (typeof aVal === "string" && typeof bVal === "string") {
+          return direction === "asc"
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+        }
+
+        return direction === "asc" ? aVal - bVal : bVal - aVal;
+      });
+    }
+
+    setFilteredProducts(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [products, searchTerm, filterCategory, priceRange, sortConfig]);
+
   const handleAddProduct = () => {
     setEditingProduct(null);
     setPreviewImage("");

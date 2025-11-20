@@ -8,6 +8,7 @@ import {
   FaPhone,
   FaEnvelope,
   FaMapMarkerAlt,
+  FaQrcode,
   FaCreditCard,
   FaMoneyBillWave,
   FaReceipt,
@@ -16,6 +17,7 @@ import {
 } from "react-icons/fa";
 
 const POSInvoice = ({ order, onClose, onPrint }) => {
+  console.log(order);
   const formatCurrency = (value) => {
     return Number(value || 0).toLocaleString("vi-VN");
   };
@@ -39,20 +41,47 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
     }
   };
 
-  const { date, time } = formatDateTime(order.orderDate);
+  const { date, time } = formatDateTime(
+    order.orderDate || order.orderDateString || new Date()
+  );
 
-  // Calculate breakdown
+  // Normalize items (server may return `details` or `items`)
+  const items = order.items || order.details || [];
+
+  // Calculate breakdown using server-provided totals when available
   const originalSubtotal =
-    order.items?.reduce((sum, item) => {
-      return sum + (item.originalPrice || item.unitPrice) * item.quantity;
+    items.reduce((sum, item) => {
+      const unit = Number(item.originalPrice ?? item.unitPrice ?? 0);
+      const qty = Number(item.quantity ?? 0);
+      return sum + unit * qty;
     }, 0) || 0;
 
-  const productPromotionDiscount = originalSubtotal - order.subtotal;
-  const memberDiscountAmount = order.memberDiscountAmount || 0;
-  const invoiceDiscount = order.discount || 0;
+  const serverSubtotal = Number(order.totalAmount ?? order.subtotal ?? 0);
+  const productPromotionDiscount = Math.max(
+    0,
+    originalSubtotal - serverSubtotal
+  );
+  const memberDiscountAmount = Number(order.memberDiscountAmount ?? 0);
+  const invoiceDiscount = Number(order.discount ?? 0);
+
+  // Normalize payment method display
+  const paymentMethodRaw = (order.paymentMethod || "").toString();
+  const pm = paymentMethodRaw.trim().toLowerCase();
+  const getPaymentLabel = () => {
+    if (pm === "cash" || pm === "tiền mặt" || pm === "money") return "Tiền mặt";
+    if (pm === "qr" || pm === "sepay" || pm.includes("qr")) return "MBBank";
+    if (pm === "card" || pm === "credit" || pm.includes("card")) return "Thẻ";
+    return paymentMethodRaw
+      ? paymentMethodRaw.charAt(0).toUpperCase() + paymentMethodRaw.slice(1)
+      : "";
+  };
+
+  const isCashMethod = () => pm === "cash" || pm === "tiền mặt";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      {/* Print styles: when printing, hide all UI except the invoice content */}
+      <style>{`@media print { body * { visibility: hidden; } #invoice-content, #invoice-content * { visibility: visible; } #invoice-content { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header with actions */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center">
@@ -194,7 +223,7 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {order.items?.map((item, index) => (
+                    {items.map((item, index) => (
                       <tr
                         key={item.productCode}
                         className="border-b hover:bg-gray-50"
@@ -208,13 +237,15 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
                             <div className="text-xs text-gray-500">
                               Mã: {item.productCode}
                             </div>
-                            {item.originalPrice &&
-                              item.originalPrice > item.unitPrice && (
-                                <div className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                  <FaGift size={10} />
-                                  Khuyến mãi sản phẩm
-                                </div>
-                              )}
+                            {(item.originalPrice &&
+                              item.originalPrice > item.unitPrice) ||
+                            (item.discountValue &&
+                              Number(item.discountValue) > 0) ? (
+                              <div className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                <FaGift size={10} />
+                                Khuyến mãi sản phẩm
+                              </div>
+                            ) : null}
                           </div>
                         </td>
                         <td className="p-3 text-center font-medium">
@@ -222,23 +253,34 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
                         </td>
                         <td className="p-3 text-right">
                           {item.originalPrice &&
-                          item.originalPrice > item.unitPrice ? (
+                          item.originalPrice > (item.unitPrice ?? 0) ? (
                             <div>
                               <div className="line-through text-gray-400 text-xs">
                                 {formatCurrency(item.originalPrice)}đ
                               </div>
                               <div className="font-medium text-red-600">
-                                {formatCurrency(item.unitPrice)}đ
+                                {formatCurrency(
+                                  item.unitPrice ?? item.finalPrice ?? 0
+                                )}
+                                đ
                               </div>
                             </div>
                           ) : (
                             <div className="font-medium">
-                              {formatCurrency(item.unitPrice)}đ
+                              {formatCurrency(
+                                item.unitPrice ?? item.finalPrice ?? 0
+                              )}
+                              đ
                             </div>
                           )}
                         </td>
                         <td className="p-3 text-right font-medium">
-                          {formatCurrency(item.subtotal)}đ
+                          {formatCurrency(
+                            item.finalPrice ??
+                              item.totalAmount ??
+                              (item.unitPrice ?? 0) * (item.quantity ?? 1)
+                          )}
+                          đ
                         </td>
                       </tr>
                     ))}
@@ -253,8 +295,10 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
               <div className="p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white rounded-full">
-                    {order.paymentMethod === "cash" ? (
+                    {isCashMethod() ? (
                       <FaMoneyBillWave className="text-green-600 text-xl" />
+                    ) : pm.includes("qr") ? (
+                      <FaQrcode className="text-blue-600 text-xl" />
                     ) : (
                       <FaCreditCard className="text-blue-600 text-xl" />
                     )}
@@ -264,12 +308,11 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
                       Phương thức thanh toán
                     </div>
                     <div className="text-lg font-bold text-gray-800">
-                      {order.paymentMethod === "cash" ? "Tiền mặt" : "Thẻ"}
+                      {getPaymentLabel()}
                     </div>
                   </div>
                 </div>
-
-                {order.paymentMethod === "cash" ? (
+                {isCashMethod() ? (
                   <div className="text-right">
                     <div className="text-sm text-gray-600">Khách đưa</div>
                     <div className="text-lg font-semibold">
@@ -279,6 +322,15 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
                       Tiền thừa: {formatCurrency(order.change)}đ
                     </div>
                   </div>
+                ) : pm.includes("qr") ? (
+                  <div className="text-right text-sm text-gray-600">
+                    Chuyển khoản qua QR MBBANK
+                    {order.orderCode && (
+                      <div className="text-xs text-gray-500">
+                        Mã đơn: {order.orderCode}
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="text-right text-sm text-gray-600">
                     Thanh toán bằng thẻ
@@ -286,11 +338,11 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
                 )}
               </div>
 
-              {/* Summary breakdown */}
+              {/* Summary breakdown (use server fields if available) */}
               <div className="bg-white p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-800 mb-3">Tổng kết</h3>
                 <div className="space-y-2 text-sm">
-                  {originalSubtotal > order.subtotal && (
+                  {originalSubtotal > (order.totalAmount ?? serverSubtotal) && (
                     <>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Tạm tính (gốc):</span>
@@ -307,19 +359,39 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
 
                   <div className="flex justify-between">
                     <span className="text-gray-600">Tạm tính:</span>
-                    <span>{formatCurrency(order.subtotal)}đ</span>
+                    <span>
+                      {formatCurrency(order.totalAmount ?? serverSubtotal)}đ
+                    </span>
                   </div>
 
-                  {memberDiscountAmount > 0 && (
+                  {Number(order.promotionCustomerValue ?? 0) > 0 && (
                     <div className="flex justify-between text-blue-600">
-                      <span>Giảm giá thành viên:</span>
-                      <span>-{formatCurrency(memberDiscountAmount)}đ</span>
+                      <span>
+                        Giảm giá KH (
+                        {Math.round((order.promotionCustomerValue || 0) * 100)}
+                        %):
+                      </span>
+                      <span>
+                        -
+                        {formatCurrency(
+                          (order.totalAmount ?? serverSubtotal) *
+                            (order.promotionCustomerValue || 0)
+                        )}
+                        đ
+                      </span>
+                    </div>
+                  )}
+
+                  {Number(order.couponDiscountValue ?? 0) > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>Giảm giá coupon:</span>
+                      <span>-{formatCurrency(order.couponDiscountValue)}đ</span>
                     </div>
                   )}
 
                   {invoiceDiscount > 0 && (
                     <div className="flex justify-between text-red-600">
-                      <span>Giảm giá hóa đơn:</span>
+                      <span>Giảm giá khác:</span>
                       <span>-{formatCurrency(invoiceDiscount)}đ</span>
                     </div>
                   )}
@@ -328,7 +400,13 @@ const POSInvoice = ({ order, onClose, onPrint }) => {
                     <div className="flex justify-between text-lg font-bold">
                       <span>Tổng cộng:</span>
                       <span className="text-green-600">
-                        {formatCurrency(order.total)}đ
+                        {formatCurrency(
+                          order.finalAmount ??
+                            order.total ??
+                            order.totalAmount ??
+                            0
+                        )}
+                        đ
                       </span>
                     </div>
                   </div>

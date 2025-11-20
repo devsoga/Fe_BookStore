@@ -19,7 +19,8 @@ import {
 const CategoryFilter = ({
   selectedCategory,
   onCategoryChange,
-  productCounts = {}
+  productCounts = {},
+  bookTypes = []
 }) => {
   const categories = [
     {
@@ -129,7 +130,12 @@ const CategoryFilter = ({
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-3">
         {categories.map((category) => {
-          const isActive = selectedCategory === category.code;
+          // Treat book sub-type selections as activating the 'book' category
+          const isActive =
+            category.code === "book"
+              ? selectedCategory === "book" ||
+                (bookTypes || []).includes(selectedCategory)
+              : selectedCategory === category.code;
           const IconComponent = category.icon;
           const count = productCounts[category.code] || 0;
 
@@ -169,6 +175,7 @@ const CategoryFilter = ({
             </button>
           );
         })}
+        {/* Book sub-type buttons removed (handled by SortProduct select) */}
       </div>
     </div>
   );

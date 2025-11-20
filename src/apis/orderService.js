@@ -1,7 +1,9 @@
 import axiosClient from "./axiosClient";
 
 const createOrder = async (body) => {
+  console.log(body);
   const result = await axiosClient.post(`/orders`, body);
+  console.log(result);
   return result;
 };
 

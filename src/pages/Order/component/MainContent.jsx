@@ -279,6 +279,50 @@ const MainContent = () => {
               const statusInfo = getOrderStatus(order);
               const StatusIcon = statusInfo.icon;
 
+              // Compute totals and discounts according to API shape
+              const totalAmountNum = Number(order.totalAmount) || 0;
+              const promotionDiscountNum = order.promotionCustomerValue
+                ? order.promotionCustomerValue < 1
+                  ? totalAmountNum * Number(order.promotionCustomerValue)
+                  : Number(order.promotionCustomerValue)
+                : 0;
+              const couponDiscountNum = order.couponDiscountValue
+                ? order.couponDiscountValue < 1
+                  ? (totalAmountNum - promotionDiscountNum) *
+                    Number(order.couponDiscountValue)
+                  : Number(order.couponDiscountValue)
+                : 0;
+              const otherDiscountNum = Number(order.discount) || 0;
+              const computedFinal =
+                Number(order.finalAmount) ||
+                totalAmountNum -
+                  promotionDiscountNum -
+                  couponDiscountNum -
+                  otherDiscountNum;
+
+              // collect up to 3 thumbnails for quick preview
+              const thumbnails = (order.details || order.items || [])
+                .slice(0, 3)
+                .map((d) => d.image || d.thumbnail)
+                .filter(Boolean);
+
+              // product-level discounts (per item)
+              const productDiscounts = (order.details || order.items || [])
+                .map((d) => {
+                  const qty = Number(d.quantity) || 1;
+                  const unit = Number(d.unitPrice) || 0;
+                  const total = Number(d.totalAmount) || unit * qty;
+                  const final = Number(d.finalPrice) || 0;
+                  const discountAmt = Math.max(0, total - final);
+                  return {
+                    code: d.productCode,
+                    name: d.productName,
+                    discountAmt,
+                    discountValue: Number(d.discountValue) || 0
+                  };
+                })
+                .filter((d) => d.discountAmt > 0);
+
               return (
                 <div
                   key={order._id || index}
@@ -333,52 +377,77 @@ const MainContent = () => {
 
                     {/* Order Summary */}
                     <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">Tạm tính:</span>
-                          <span className="float-right font-medium">
-                            {formatVND(order.totalAmount)}
-                          </span>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="text-sm text-gray-600">
+                            <div>
+                              Giá gốc:{" "}
+                              <span className="font-medium text-gray-900 ml-2">
+                                {formatVND(totalAmountNum)}
+                              </span>
+                            </div>
+                            {order.promotionCustomerCode && (
+                              <div className="text-xs text-gray-500">
+                                KM: {order.promotionCustomerCode}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {order.promotionCustomerValue > 0 && (
-                          <div>
-                            <span className="text-gray-600">Giảm giá KH:</span>
-                            <span className="float-right text-red-600">
-                              -
-                              {formatVND(
-                                order.totalAmount * order.promotionCustomerValue
-                              )}
-                            </span>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-600">Tổng cộng</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {formatVND(computedFinal)}
                           </div>
-                        )}
-                        {order.couponDiscountValue > 0 && (
-                          <div>
-                            <span className="text-gray-600">
-                              Giảm giá coupon:
-                            </span>
-                            <span className="float-right text-red-600">
-                              -{formatVND(order.couponDiscountValue)}
-                            </span>
-                          </div>
-                        )}
-                        {order.discount > 0 && (
-                          <div>
-                            <span className="text-gray-600">
-                              Giảm giá khác:
-                            </span>
-                            <span className="float-right text-red-600">
-                              -{formatVND(order.discount)}
-                            </span>
-                          </div>
-                        )}
+                        </div>
                       </div>
-                      <div className="border-t mt-2 pt-2">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold">Tổng cộng:</span>
-                          <span className="font-bold text-lg text-blue-600">
-                            {formatVND(order.finalAmount)}
-                          </span>
-                        </div>
+
+                      <div className="grid grid-cols-1 gap-2 text-sm">
+                        {promotionDiscountNum > 0 && (
+                          <div className="flex justify-between text-red-600">
+                            <span>
+                              Giảm giá KH{" "}
+                              {order.promotionCustomerValue < 1
+                                ? `(${Math.round(
+                                    order.promotionCustomerValue * 100
+                                  )}%)`
+                                : ""}
+                            </span>
+                            <span>-{formatVND(promotionDiscountNum)}</span>
+                          </div>
+                        )}
+                        {couponDiscountNum > 0 && (
+                          <div className="flex justify-between text-red-600">
+                            <span>
+                              Giảm giá coupon{" "}
+                              {order.couponCode ? `(${order.couponCode})` : ""}
+                            </span>
+                            <span>-{formatVND(couponDiscountNum)}</span>
+                          </div>
+                        )}
+                        {otherDiscountNum > 0 && (
+                          <div className="flex justify-between text-red-600">
+                            <span>Giảm giá khác</span>
+                            <span>-{formatVND(otherDiscountNum)}</span>
+                          </div>
+                        )}
+                        {productDiscounts.length > 0 && (
+                          <div className="mt-2 border-t pt-2">
+                            <div className="text-sm font-medium text-gray-700 mb-1">
+                              Giảm giá sản phẩm
+                            </div>
+                            {productDiscounts.map((pd) => (
+                              <div
+                                key={pd.code}
+                                className="flex justify-between text-red-600 text-sm"
+                              >
+                                <span className="truncate max-w-[180px]">
+                                  {pd.name || pd.code}
+                                </span>
+                                <span>-{formatVND(pd.discountAmt)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -391,6 +460,8 @@ const MainContent = () => {
                             ? "Thanh toán khi nhận hàng"
                             : order.paymentMethod === "QR"
                             ? "Chuyển khoản QR"
+                            : order.paymentMethod === "VNPAY"
+                            ? "Thanh toán VNPAY"
                             : "Khác"}
                         </p>
                         <p
@@ -449,7 +520,7 @@ const MainContent = () => {
                         Hủy đơn hàng
                       </button>
 
-                      {order.status === "completed" && (
+                      {statusInfo.key === "delivered" && (
                         <button
                           onClick={() => handleViewDetail(order)}
                           className="flex items-center gap-2 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors"

@@ -18,7 +18,7 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
   const dialogRef = useRef(null);
   const { formatVND } = useStransferToVND();
   const [productMap, setProductMap] = useState({});
-
+  console.log(order);
   // focus modal khi mở
   useEffect(() => {
     if (isOpen) {
@@ -74,7 +74,11 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
         productInfo?.price ??
         productInfo?.unitPrice ??
         0;
-      const subtotal = p.finalPrice ?? p.totalAmount ?? unitPrice * qty;
+      // compute totals and discount per item
+      const total = Number(p.totalAmount) || unitPrice * qty;
+      const finalPrice = Number(p.finalPrice) || total;
+      const discountAmt = Math.max(0, total - finalPrice);
+      const subtotal = finalPrice;
       const image =
         productInfo?.image ?? productInfo?.imageUrl ?? productInfo?.thumbnail;
       const imageUrl = image ? buildImageUrl(image) : null;
@@ -104,6 +108,22 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
           </td>
           <td className="px-4 py-2 text-center">{qty}</td>
           <td className="px-4 py-2 text-right">{formatVND(unitPrice)}</td>
+          <td className="px-4 py-2 text-right">
+            {discountAmt > 0 ? (
+              <div>
+                <span className="font-medium text-red-600">
+                  -{formatVND(discountAmt)}
+                </span>
+                {Number(p.discountValue) && Number(p.discountValue) < 1 ? (
+                  <span className="text-xs text-gray-500 ml-2">
+                    ({Math.round(Number(p.discountValue) * 100)}%)
+                  </span>
+                ) : null}
+              </div>
+            ) : (
+              <span className="text-gray-400">-</span>
+            )}
+          </td>
           <td className="px-4 py-2 text-right">{formatVND(subtotal)}</td>
         </tr>
       );
@@ -243,9 +263,16 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
                 </p>
                 <p>
                   <strong>Trạng thái thanh toán:</strong>{" "}
-                  {order.isPaid ?? order.isPayment
-                    ? "Đã thanh toán"
-                    : "Chưa thanh toán"}
+                  {(() => {
+                    const paid = Boolean(order.isPaid ?? order.isPayment);
+                    return (
+                      <span
+                        className={paid ? "text-green-500" : "text-red-500"}
+                      >
+                        {paid ? "Đã thanh toán" : "Chưa thanh toán"}
+                      </span>
+                    );
+                  })()}
                 </p>
                 <p>
                   <strong>Coupon:</strong>{" "}
@@ -292,6 +319,7 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
                         <th className="px-4 py-2 text-left">Tên sản phẩm</th>
                         <th className="px-4 py-2 text-center">SL</th>
                         <th className="px-4 py-2 text-right">Đơn giá</th>
+                        <th className="px-4 py-2 text-right">Giảm giá</th>
                         <th className="px-4 py-2 text-right">Thành tiền</th>
                       </tr>
                     </thead>

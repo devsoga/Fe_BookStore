@@ -8,6 +8,10 @@ import OurShop from "~/pages/OurShop/OurShop";
 import Order from "~/pages/Order/Order";
 import PageNotFound from "~/components/PageNotFound/PageNotFound";
 import About from "~/pages/About/About";
+import VnpayCallback from "~/pages/Cart/component/Content/VnpayCallback";
+import OrderSuccess from "~/pages/Cart/component/Content/OrderSuccess";
+import VnpaySuccess from "~/pages/VnpaySuccess/VnpaySuccess";
+import VnpayFailure from "~/pages/VnpayFailure/VnpayFailure";
 import AdminDashboard from "~/pages/Admin/AdminDashboard";
 import RolesPage from "~/pages/Admin/Roles/RolesPage";
 import AccountsPage from "~/pages/Admin/AdminDashboard/AccountsPage";
@@ -49,6 +53,22 @@ const useRouteCustom = () => {
     {
       path: path.Cart,
       element: <Cart />
+    },
+    {
+      path: "/vnpay/callback",
+      element: <VnpayCallback />
+    },
+    {
+      path: "/order-success",
+      element: <OrderSuccess />
+    },
+    {
+      path: "/vnpay-success",
+      element: <VnpaySuccess />
+    },
+    {
+      path: "/vnpay-failure",
+      element: <VnpayFailure />
     },
     {
       path: path.Product,

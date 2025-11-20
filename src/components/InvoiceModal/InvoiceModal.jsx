@@ -14,6 +14,7 @@ import { ToastifyContext } from "~/contexts/ToastifyProvider";
 import { orderService } from "~/apis/orderService";
 
 const InvoiceModal = forwardRef(({ order, onClose }, ref) => {
+  console.log(order);
   if (!order) return null;
 
   // Try to read customer name from localStorage `userInfo` key
@@ -132,13 +133,6 @@ const InvoiceModal = forwardRef(({ order, onClose }, ref) => {
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-lg font-bold">Hóa đơn bán hàng</h2>
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowRating(true)}
-              className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 flex items-center gap-2"
-            >
-              <FaStar className="text-sm" />
-              Đánh giá
-            </button>
             <button
               onClick={() => setShowCancelConfirm(true)}
               disabled={isCancelling}
