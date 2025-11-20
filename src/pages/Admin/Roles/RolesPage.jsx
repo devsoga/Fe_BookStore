@@ -63,6 +63,10 @@ const RolesPage = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const itemsPerPage = 10;
 
+  // 🔍 View detail state
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingRole, setViewingRole] = useState(null);
+
   // ===================== FETCH ROLES TỪ BACKEND =====================
   const fetchRoles = async () => {
     try {
@@ -162,7 +166,12 @@ const RolesPage = () => {
     setIsModalOpen(true);
   };
 
-  // ===================== SUBMIT (CREATE / UPDATE) =====================
+  // 🔍 mở modal xem chi tiết vai trò
+  const openViewModal = (role) => {
+    setViewingRole(role);
+    setIsViewModalOpen(true);
+  };
+
   // ===================== SUBMIT (CREATE / UPDATE) =====================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -315,7 +324,9 @@ const RolesPage = () => {
     }
   ];
 
+  // ✅ thêm view, giữ nguyên edit & delete
   const actions = {
+    view: openViewModal,
     edit: openEditModal,
     delete: handleDelete
   };
@@ -526,6 +537,59 @@ const RolesPage = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* 🔍 View detail Role Modal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title="Chi tiết vai trò"
+        size="md"
+      >
+        {viewingRole && (
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Role Code:</span>
+              <span className="font-mono font-medium">
+                {viewingRole.roleCode}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Role Name:</span>
+              <span className="font-medium">{viewingRole.roleName}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block mb-1">Description:</span>
+              <p className="text-gray-800">{viewingRole.description || "—"}</p>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Permissions:</span>
+              <span className="font-medium">
+                {viewingRole.permissions || "Basic"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Status:</span>
+              <span
+                className={`font-medium ${
+                  viewingRole.status === "Active"
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {viewingRole.status}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Ngày tạo:</span>
+              <span className="font-medium">
+                {viewingRole.createdAt
+                  ? new Date(viewingRole.createdAt).toLocaleString("vi-VN")
+                  : "—"}
+              </span>
+            </div>
+          </div>
+        )}
       </Modal>
     </AdminLayout>
   );

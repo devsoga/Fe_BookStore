@@ -453,16 +453,6 @@ const CustomersPage = () => {
           <p className="text-2xl font-bold text-gray-900">
             {value.toLocaleString()}
           </p>
-          {change && (
-            <p
-              className={`text-xs ${
-                change >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {change >= 0 ? "+" : ""}
-              {change}% so với tháng trước
-            </p>
-          )}
         </div>
       </div>
     </button>

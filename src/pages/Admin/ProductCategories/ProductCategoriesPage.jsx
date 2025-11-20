@@ -217,11 +217,11 @@ const ProductCategoriesPage = () => {
       key: "categoryCode",
       title: "Category Code",
       sortable: true,
-      render: (value) => (
+      render: (_value, item) => (
         <div className="flex items-center">
           <FaLayerGroup className="text-blue-500 mr-2" />
           <code className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-            {value}
+            {item?.categoryCode}
           </code>
         </div>
       )
@@ -230,26 +230,26 @@ const ProductCategoriesPage = () => {
       key: "categoryName",
       title: "Category Name",
       sortable: true,
-      render: (value) => (
-        <span className="font-medium text-gray-900">{value}</span>
+      render: (_value, item) => (
+        <span className="font-medium text-gray-900">{item?.categoryName}</span>
       )
     },
     {
       key: "categoryType",
       title: "Type",
       sortable: true,
-      render: (value) => (
+      render: (_value, item) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {getCategoryTypeLabel(value)}
+          {getCategoryTypeLabel(item?.categoryType)}
         </span>
       )
     },
     {
       key: "description",
       title: "Description",
-      render: (value) => (
-        <div className="max-w-xs truncate" title={value}>
-          {value}
+      render: (_value, item) => (
+        <div className="max-w-xs truncate" title={item?.description}>
+          {item?.description}
         </div>
       )
     }

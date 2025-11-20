@@ -27,7 +27,7 @@ import { productService } from "../../../apis/productService";
 import promotionService from "../../../apis/promotionService";
 import { orderService } from "../../../apis/orderService";
 import { buildImageUrl } from "../../../lib/utils";
-import mockCustomers from "~/mocks/customers.json";
+
 import axiosClient from "../../../apis/axiosClient";
 import POSInvoice from "../../../components/POSInvoice/POSInvoice";
 import { toast } from "react-toastify";

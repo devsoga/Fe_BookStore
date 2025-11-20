@@ -9,23 +9,24 @@ import Order from "~/pages/Order/Order";
 import PageNotFound from "~/components/PageNotFound/PageNotFound";
 import About from "~/pages/About/About";
 import AdminDashboard from "~/pages/Admin/AdminDashboard";
-import RolesPage from "~/pages/Admin/RolesPage";
-import AccountsPage from "~/pages/Admin/AccountsPage";
-import CustomersPage from "~/pages/Admin/CustomersPage";
-import EmployeesPage from "~/pages/Admin/EmployeesPage";
-import CustomerTypePage from "~/pages/Admin/CustomerTypePage";
+import RolesPage from "~/pages/Admin/Roles/RolesPage";
+import AccountsPage from "~/pages/Admin/AdminDashboard/AccountsPage";
+import CustomersPage from "~/pages/Admin/Customers/CustomersPage";
+import EmployeesPage from "~/pages/Admin/Employees/EmployeesPage";
+import CustomerTypePage from "~/pages/Admin/CustomerType/CustomerTypePage";
 import SuppliersPage from "~/pages/Admin/Supplier/SuppliersPage";
 import ProductCategoriesPage from "~/pages/Admin/ProductCategories/ProductCategoriesPage";
 import ProductsPage from "~/pages/Admin/Product/ProductsPage";
 import PriceHistoryPage from "~/pages/Admin/PriceHistory/PriceHistoryPage";
 import WarehousePage from "~/pages/Admin/Warehouse/WarehousePage";
-import OrdersPage from "~/pages/Admin/OrdersPage";
+import OrdersPage from "~/pages/Admin/Orders/OrdersPage";
 import ImportInvoicesPage from "~/pages/Admin/ImportInvoice/ImportInvoicesPage";
 import AdminApprovalPage from "~/pages/Admin/ImportInvoice/AdminApprovalPage";
 import ImportInvoicePrint from "~/pages/Admin/ImportInvoice/ImportInvoicePrint";
 import PromotionTypesPage from "~/pages/Admin/PromotionTypes/PromotionTypesPage";
 import PromotionsPage from "~/pages/Admin/Promotions/PromotionsPage";
 import POSPage from "~/pages/Admin/POS/POSPage";
+import CouponPage from "~/pages/Admin/Coupon/CouponPage";
 
 const useRouteCustom = () => {
   const elements = useRoutes([
@@ -116,6 +117,10 @@ const useRouteCustom = () => {
     {
       path: path.AdminPromotions,
       element: <PromotionsPage />
+    },
+    {
+      path: "/admin/coupons",
+      element: <CouponPage />
     },
     {
       path: path.AdminImportInvoices,

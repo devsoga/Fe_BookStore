@@ -25,10 +25,68 @@ import { ToastifyContext } from "~/contexts/ToastifyProvider";
 import Loading from "~/components/Loading/Loading";
 import ImageCarousel from "./ImageCarousel";
 
+// Seeded mock reviews for local/dev preview — replace with API data as needed
+const MOCK_COMMENTS = [
+  {
+    _id: "r1",
+    userId: "u1",
+    username: "alice",
+    rating: 5,
+    comment:
+      "Absolutely loved this book — informative, well-paced and a pleasure to read.",
+    images: [],
+    is_verified_purchase: true,
+    createAt: "2025-11-01T10:00:00.000Z",
+    updatedAt: "2025-11-01T10:00:00.000Z"
+  },
+  {
+    _id: "r2",
+    userId: "u2",
+    username: "bob",
+    rating: 4,
+    comment:
+      "Great content but a little long in parts. Recommended for enthusiasts.",
+    images: [],
+    is_verified_purchase: false,
+    createAt: "2025-10-15T14:30:00.000Z",
+    updatedAt: "2025-10-15T14:30:00.000Z"
+  }
+];
+
+// Questions (Q&A) - local state UI (seeded with mock data for preview)
+const MOCK_QUESTIONS = [
+  {
+    id: "q1",
+    userId: "u3",
+    user: "charlie",
+    text: "Is this the latest edition of the book?",
+    date: "2025-11-05T08:20:00.000Z",
+    answers: [
+      {
+        id: "a1",
+        responderId: "shop1",
+        responder: "BookStore Official",
+        isShop: true,
+        isVerifiedBuyer: false,
+        text: "Yes — this listing is for the latest 3rd edition.",
+        date: "2025-11-05T09:00:00.000Z"
+      }
+    ]
+  },
+  {
+    id: "q2",
+    userId: "u4",
+    user: "diana",
+    text: "Does this edition include practice exercises at the end of chapters?",
+    date: "2025-10-20T12:00:00.000Z",
+    answers: []
+  }
+];
 const MainContentDetail = ({ product }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isResetComment, setIsResetComment] = useState(false);
-  const [listComment, setListComment] = useState([]);
+
+  const [listComment, setListComment] = useState(MOCK_COMMENTS);
   const [isShowInfo, setIsShowInfo] = useState(false);
   const [isShowRating, setIsShowRating] = useState(false);
   const [selectedSize, setSelectedSize] = useState(null);
@@ -84,19 +142,6 @@ const MainContentDetail = ({ product }) => {
     }
   }
 
-  // useEffect(() => {
-  //   commentService
-  //     .findAllCommentByProductId(_id)
-  //     .then((res) => {
-  //       if (res.data.length > 0) {
-  //         setListComment(res.data);
-  //       } else {
-  //         setListComment(null);
-  //       }
-  //     })
-  //     .catch();
-  // }, [isResetComment]);
-
   const formik = useFormik({
     initialValues: {
       review: ""
@@ -126,6 +171,127 @@ const MainContentDetail = ({ product }) => {
         });
     }
   });
+
+  const [listQuestions, setListQuestions] = useState(MOCK_QUESTIONS);
+  const [questionText, setQuestionText] = useState("");
+
+  // --- Review stats + edit/create UI state ---
+  const [isEditingReview, setIsEditingReview] = useState(false);
+  const [editRating, setEditRating] = useState(5);
+  const [editCommentText, setEditCommentText] = useState("");
+
+  const computeReviewStats = (reviews) => {
+    const total = Array.isArray(reviews) ? reviews.length : 0;
+    const avg = total
+      ? reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / total
+      : 0;
+    const byStar = [5, 4, 3, 2, 1].map((star) => {
+      const count = (reviews || []).filter(
+        (r) => Number(r.rating) === star
+      ).length;
+      return {
+        star,
+        count,
+        percent: total ? Math.round((count / total) * 100) : 0
+      };
+    });
+    return { total, avg: Math.round(avg * 10) / 10, byStar };
+  };
+
+  const stats = computeReviewStats(listComment);
+
+  const findUserReview = () => {
+    if (!userInfo || !userInfo._id) return null;
+    return (listComment || []).find((r) => r.userId === userInfo._id) || null;
+  };
+
+  const userReview = findUserReview();
+
+  const startEditReview = () => {
+    if (!userReview) {
+      setEditRating(5);
+      setEditCommentText("");
+      setIsEditingReview(true);
+      return;
+    }
+    setEditRating(userReview.rating || 5);
+    setEditCommentText(userReview.comment || "");
+    setIsEditingReview(true);
+  };
+
+  const saveReview = () => {
+    if (!isVerifiedBuyer()) {
+      toast?.error?.("Only verified buyers can submit reviews.");
+      return;
+    }
+    if (!editCommentText || editCommentText.trim().length < 5) {
+      toast?.error?.("Please write a longer review (5+ characters).");
+      return;
+    }
+    if (userReview) {
+      setListComment((prev) =>
+        prev.map((r) =>
+          r.userId === userInfo._id
+            ? {
+                ...r,
+                rating: editRating,
+                comment: editCommentText.trim(),
+                updatedAt: new Date().toISOString()
+              }
+            : r
+        )
+      );
+      toast?.success?.("Review updated.");
+    } else {
+      const newR = {
+        _id: `r_${Date.now()}`,
+        userId: userInfo?._id || `guest_${Date.now()}`,
+        username: userInfo?.username || "Guest",
+        rating: editRating,
+        comment: editCommentText.trim(),
+        images: [],
+        is_verified_purchase: true,
+        createAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setListComment((prev) => [newR, ...prev]);
+      toast?.success?.("Review submitted. Thank you!");
+    }
+    setIsEditingReview(false);
+  };
+
+  const submitQuestion = (e) => {
+    e.preventDefault();
+    if (!questionText || questionText.trim().length < 3) {
+      toast?.error?.("Please write a short question (3+ characters).");
+      return;
+    }
+    const newQ = {
+      id: Date.now(),
+      user: userInfo?.username || "Guest",
+      text: questionText.trim(),
+      date: new Date().toISOString()
+    };
+    // optimistic UI add
+    setListQuestions((prev) => [newQ, ...prev]);
+    setQuestionText("");
+    toast?.success?.("Question submitted. Thank you!");
+    // TODO: send to backend when API available
+  };
+
+  // Placeholder check for verified purchaser. Replace with real API check.
+  const isVerifiedBuyer = () => {
+    try {
+      // Example: userInfo.purchasedProducts could be an array of productCodes
+      return (
+        !!userInfo &&
+        Array.isArray(userInfo.purchasedProducts) &&
+        userInfo.purchasedProducts.includes(productCode)
+      );
+    } catch {
+      return false;
+    }
+  };
 
   return (
     <>
@@ -219,35 +385,68 @@ const MainContentDetail = ({ product }) => {
               ))}
             </div>
           </div>
-          <h2 className="text-center mt-3">Your Payment is 100% Secure</h2>
-          {/* Thông tin khác */}
-          <div className="flex space-x-3">
-            <p>SKU:</p>
-            <p className="text-third">{productCode}</p>
+          <h2 className="text-center mt-3 py-20">
+            Your Payment is 100% Secure
+          </h2>
+
+          {/* Product Details Card */}
+          <div className="p-6 border border-gray-200 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+              Product Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg p-4 border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  SKU Code
+                </div>
+                <div className="font-medium text-gray-800 flex items-center">
+                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                  {productCode}
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  Category
+                </div>
+                <div className="font-medium text-gray-800 flex items-center">
+                  <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                  {displayCategory}
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  Author
+                </div>
+                <div className="font-medium text-gray-800 flex items-center">
+                  <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                  {author || "Unknown"}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex space-x-3">
-            <p>Category:</p>
-            <p className="text-third">{displayCategory}</p>
-          </div>
-          <div className="flex space-x-3">
-            <p>Author:</p>
-            <p className="text-third">{author}</p>
-          </div>
-          {/* additional information */}
-          <div>
+          {/* Additional Information */}
+          <div className="bg-white  border border-gray-200 shadow-sm overflow-hidden">
             {/* Header */}
             <div
-              className="bg-gray-200 flex space-x-3 items-center px-2 py-1 cursor-pointer"
+              className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 flex items-center justify-between px-6 py-4 cursor-pointer border-b border-gray-200"
               onClick={() => setIsShowInfo(!isShowInfo)}
             >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 text-sm">📋</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Additional Information
+                </h3>
+              </div>
               <span
-                className={`transition-transform duration-500 ease-in-out ${
-                  isShowInfo ? "-rotate-180" : "rotate-0"
+                className={`transition-transform duration-300 ease-in-out text-blue-600 ${
+                  isShowInfo ? "rotate-180" : "rotate-0"
                 }`}
               >
-                <IoIosArrowDown />
+                <IoIosArrowDown className="text-xl" />
               </span>
-              <h2>ADDITIONAL INFORMATION</h2>
             </div>
 
             {/* Content */}
@@ -256,113 +455,306 @@ const MainContentDetail = ({ product }) => {
                 isShowInfo ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
               }`}
             >
-              {/* <table className="w-full text-third">
-                <tbody>
-                  <tr className="border-b h-20">
-                    <td>Size</td>
-                    <td>
-                      {sizes.map((item, index) => (
-                        <span key={index}>
-                          {item}
-                          {index < sizes.length - 1 && ", "}
-                        </span>
-                      ))}
-                    </td>
-                  </tr>
-                </tbody>
-              </table> */}
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-sm text-gray-600 mb-2">
+                      Product Description
+                    </div>
+                    <div className="text-gray-800">
+                      {description || "No additional description available."}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-sm text-gray-600 mb-2">
+                      Availability
+                    </div>
+                    <div className="flex items-center text-green-600">
+                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                      In Stock
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          {/* rating */}
-          <div>
+          {/* Reviews Section */}
+          <div className="bg-white  border border-gray-200 shadow-sm overflow-hidden">
             {/* Header */}
             <div
-              className="bg-gray-200 flex space-x-3 items-center px-2 py-1 cursor-pointer"
+              className="bg-gradient-to-r from-amber-50 to-yellow-50 hover:from-amber-100 hover:to-yellow-100 transition-all duration-300 flex items-center justify-between px-6 py-4 cursor-pointer border-b border-gray-200"
               onClick={() => setIsShowRating(!isShowRating)}
             >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                  <span className="text-amber-600 text-sm">⭐</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Customer Reviews
+                  </h3>
+                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                      {listComment ? listComment.length : 0}{" "}
+                      {listComment?.length === 1 ? "review" : "reviews"}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <span
-                className={`transition-transform duration-500 ease-in-out ${
-                  isShowRating ? "-rotate-180" : "rotate-0"
+                className={`transition-transform duration-300 ease-in-out text-amber-600 ${
+                  isShowRating ? "rotate-180" : "rotate-0"
                 }`}
               >
-                <IoIosArrowDown />
+                <IoIosArrowDown className="text-xl" />
               </span>
-              <h2>Rating reviews ({listComment ? listComment.length : 0})</h2>
             </div>
 
             {/* Content */}
             <div
-              className={`py-10 flex flex-col text-lg space-y-5 transition-all duration-500 ease-in-out overflow-hidden ${
+              className={`transition-all duration-500 ease-in-out overflow-hidden ${
                 isShowRating
                   ? "max-h-[1500px] opacity-100"
                   : "max-h-0 opacity-0"
               }`}
             >
-              <h2 className="border-b pb-5">Reviews</h2>
-              {listComment ? (
-                listComment?.map((item) => {
-                  return (
-                    <CommentCustom
-                      item={item}
-                      userInfo={userInfo}
-                      setIsResetComment={setIsResetComment}
-                    />
-                  );
-                })
-              ) : (
-                <p className="text-third">There are no reviews yet.</p>
-              )}
+              <div className="p-6">
+                <h4 className="text-lg font-medium text-gray-800 mb-6">
+                  All Reviews
+                </h4>
 
-              <p className="pt-20 border-b pb-5">
-                Be the first to review “10K Yellow Gold”
-              </p>
-              <p className="text-third">
-                Your email address will not be published. Required fields are
-                marked
-              </p>
-
-              {userInfo ? (
-                <div className="flex flex-col space-y-5">
-                  {/* rating star */}
-                  {/* <div>
-                    <h2>
-                      Your rating <span className="text-red-500">*</span>
-                    </h2>
-                    <div>
-                      <RatingCustom />
+                {/* Review statistics */}
+                <div className="mb-6 flex items-start gap-6">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-amber-600">
+                      {stats.avg || 0}
                     </div>
-                  </div> */}
-                  {/* review */}
-                  <form onSubmit={formik.handleSubmit}>
-                    <div>
-                      <h2>
-                        Your review <span className="text-red-500">*</span>
-                        <div>
-                          <textarea
-                            className="border w-full p-5 text-lg outline-none"
-                            name="review"
-                            rows={7}
-                            value={formik.values.review}
-                            onChange={formik.handleChange}
-                            onBlur={formik.handleBlur}
-                          />
-
-                          {formik.touched.review && formik.errors.review ? (
-                            <p className="text-red-500 text-sm mt-1">
-                              {formik.errors.review}
-                            </p>
-                          ) : null}
+                    <div className="text-sm text-gray-500">
+                      {stats.total} reviews
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    {stats.byStar.map((s) => (
+                      <div key={s.star} className="flex items-center gap-3">
+                        <div className="w-10 text-sm text-gray-700">
+                          {s.star}★
                         </div>
-                      </h2>
-                    </div>
-
-                    <div className="mt-10">
-                      <Button type="submit" content={"SUBMIT"} />
-                    </div>
-                  </form>
+                        <div className="h-2 bg-gray-200 flex-1 rounded overflow-hidden">
+                          <div
+                            style={{ width: `${s.percent}%` }}
+                            className="h-full bg-amber-400"
+                          />
+                        </div>
+                        <div className="w-12 text-sm text-gray-600 text-right">
+                          {s.percent}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Review create / edit area */}
+                <div className="mb-6">
+                  {isEditingReview ? (
+                    <div className="space-y-3 bg-gray-50 p-4 rounded-lg border">
+                      <label className="text-sm">Your rating</label>
+                      <select
+                        value={editRating}
+                        onChange={(e) => setEditRating(Number(e.target.value))}
+                        className="px-2 py-1 border rounded"
+                      >
+                        {[5, 4, 3, 2, 1].map((r) => (
+                          <option key={r} value={r}>
+                            {r} star{r > 1 ? "s" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <textarea
+                        value={editCommentText}
+                        onChange={(e) => setEditCommentText(e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border rounded"
+                        placeholder="Write your review"
+                      />
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={saveReview}
+                          className="px-4 py-2 bg-amber-600 text-white rounded"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setIsEditingReview(false)}
+                          className="px-4 py-2 border rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {isVerifiedBuyer() ? (
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={startEditReview}
+                            className="px-4 py-2 bg-amber-600 text-white rounded"
+                          >
+                            {userReview ? "Edit your review" : "Write a review"}
+                          </button>
+                          {userReview && (
+                            <div className="text-sm text-gray-600">
+                              You rated this product {userReview.rating}★
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-600">
+                          Only verified buyers can submit reviews.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {listComment && listComment.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-6">
+                      <h4 className="text-lg font-medium text-gray-800">
+                        All Reviews
+                      </h4>
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span>Verified purchases only</span>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      {listComment.map((item, index) => (
+                        <div
+                          key={index}
+                          className="bg-gray-50 rounded-lg p-4 border border-gray-100"
+                        >
+                          <CommentCustom
+                            item={item}
+                            userInfo={userInfo}
+                            setIsResetComment={setIsResetComment}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl text-gray-400">💬</span>
+                    </div>
+                    <h4 className="text-lg font-medium text-gray-800 mb-2">
+                      No Reviews Yet
+                    </h4>
+                    <p className="text-gray-600 mb-4">
+                      Be the first to share your experience with this product.
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-blue-600">ℹ️</span>
+                      <span className="font-medium text-blue-800">
+                        Review Policy
+                      </span>
+                    </div>
+                    <p className="text-sm text-blue-700">
+                      Reviews are moderated and only verified buyers can submit
+                      ratings. If you purchased this product, make sure your
+                      account is linked to the order so you can leave a review.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Questions & Answers */}
+          <div className="mt-6 bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <h3 className="text-lg font-semibold mb-4">Questions & Answers</h3>
+
+            <form onSubmit={submitQuestion} className="mb-4">
+              <label className="text-sm text-gray-600 mb-2 block">
+                Ask a question about this product
+              </label>
+              <div className="flex gap-3">
+                <textarea
+                  value={questionText}
+                  onChange={(e) => setQuestionText(e.target.value)}
+                  placeholder="What would you like to ask?"
+                  rows={4}
+                  maxLength={500}
+                  aria-label="Question about product"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none resize-y"
+                />
+              </div>
+              <div className="my-10 w-full">
+                <Button w="w-full" content={"ASK"} />
+              </div>
+            </form>
+
+            <div className="space-y-3">
+              {listQuestions.length === 0 ? (
+                <p className="text-gray-500">
+                  No questions yet. Be the first to ask.
+                </p>
               ) : (
-                <p>Login your account to review this item!</p>
+                listQuestions.map((q) => (
+                  <div
+                    key={q.id}
+                    className="border border-gray-100 rounded-lg p-3"
+                  >
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium">{q.user}</div>
+                        <div className="text-xs text-gray-400">
+                          {new Date(q.date).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(q.date).toLocaleTimeString()}
+                      </div>
+                    </div>
+                    <div className="text-gray-800 mb-3">{q.text}</div>
+
+                    {/* Answers */}
+                    {q.answers && q.answers.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {q.answers.map((a) => (
+                          <div
+                            key={a.id}
+                            className="bg-gray-50 p-3 rounded border"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <div className="font-medium">{a.responder}</div>
+                                {a.isShop && (
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                    Shop
+                                  </span>
+                                )}
+                                {a.isVerifiedBuyer && (
+                                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                    Real Buyer
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {new Date(a.date).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="text-gray-800">{a.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
               )}
             </div>
           </div>

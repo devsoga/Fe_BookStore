@@ -47,6 +47,10 @@ const AccountsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
 
+  // 🔍 Modal xem chi tiết
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingAccount, setViewingAccount] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -291,6 +295,12 @@ const AccountsPage = () => {
     setIsModalOpen(true);
   };
 
+  // 🔍 mở modal xem chi tiết
+  const openViewModal = (account) => {
+    setViewingAccount(account);
+    setIsViewModalOpen(true);
+  };
+
   // ====================== SUBMIT (CREATE / EDIT) ======================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -322,12 +332,13 @@ const AccountsPage = () => {
     try {
       if (editingAccount) {
         // Chưa có API update -> chỉ cập nhật trên UI
+        // ❗ Không cho sửa username -> giữ nguyên username cũ
         setAccounts((prev) =>
           prev.map((acc) =>
             acc.id === editingAccount.id
               ? {
                   ...acc,
-                  username: formData.username,
+                  // username: giữ nguyên acc.username
                   email: formData.email,
                   role: formData.role,
                   roleCode: mapLabelToRoleCode(formData.role),
@@ -550,7 +561,10 @@ const AccountsPage = () => {
       render: (row) => <span>{formatDate(row.createdAt)}</span>
     }
   ];
+
+  // ✅ thêm action view, giữ nguyên edit & delete
   const actions = {
+    view: openViewModal,
     edit: openEditModal,
     delete: handleDelete
   };
@@ -695,6 +709,7 @@ const AccountsPage = () => {
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Nhập username"
+              disabled={!!editingAccount} // 🔒 không cho sửa username khi edit
             />
           </div>
 
@@ -1117,7 +1132,6 @@ const AccountsPage = () => {
               )}
           </div>
 
-          {/* Trạng thái account */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Trạng thái
@@ -1156,6 +1170,70 @@ const AccountsPage = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title="Chi tiết tài khoản"
+        size="md"
+      >
+        {viewingAccount && (
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Username:</span>
+              <span className="font-medium">{viewingAccount.username}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Email:</span>
+              <span className="font-medium break-all">
+                {viewingAccount.email}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Role:</span>
+              <span className="font-medium">{viewingAccount.role}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Trạng thái:</span>
+              <span
+                className={`font-medium ${
+                  viewingAccount.status === "Active"
+                    ? "text-green-600"
+                    : "text-gray-600"
+                }`}
+              >
+                {viewingAccount.status}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Gán cho:</span>
+              <span className="font-medium">
+                {viewingAccount.ownerName
+                  ? `${viewingAccount.ownerName} (${
+                      viewingAccount.ownerType === "Customer"
+                        ? "Khách hàng"
+                        : "Nhân viên"
+                    })`
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Ngày tạo:</span>
+              <span className="font-medium">
+                {formatDate(viewingAccount.createdAt) || "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Lần đăng nhập cuối:</span>
+              <span className="font-medium">
+                {viewingAccount.lastLogin
+                  ? formatDateTime(viewingAccount.lastLogin)
+                  : "Chưa đăng nhập"}
+              </span>
+            </div>
+          </div>
+        )}
       </Modal>
     </AdminLayout>
   );
