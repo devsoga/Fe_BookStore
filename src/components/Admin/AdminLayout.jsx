@@ -127,6 +127,11 @@ const AdminLayout = ({ children }) => {
           title: t("admin.sidebar.menu.promotions"),
           path: "/admin/promotions",
           icon: FaPercent
+        },
+        {
+          title: t("admin.sidebar.menu.coupons"),
+          path: "/admin/coupons",
+          icon: FaShoppingBag
         }
       ]
     },

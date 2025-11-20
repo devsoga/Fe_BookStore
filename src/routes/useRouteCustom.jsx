@@ -26,6 +26,7 @@ import ImportInvoicePrint from "~/pages/Admin/ImportInvoice/ImportInvoicePrint";
 import PromotionTypesPage from "~/pages/Admin/PromotionTypes/PromotionTypesPage";
 import PromotionsPage from "~/pages/Admin/Promotions/PromotionsPage";
 import POSPage from "~/pages/Admin/POS/POSPage";
+import CouponPage from "~/pages/admin/CouponPage";
 
 const useRouteCustom = () => {
   const elements = useRoutes([
@@ -116,6 +117,10 @@ const useRouteCustom = () => {
     {
       path: path.AdminPromotions,
       element: <PromotionsPage />
+    },
+    {
+      path: "/admin/coupons",
+      element: <CouponPage />
     },
     {
       path: path.AdminImportInvoices,

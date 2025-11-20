@@ -23,12 +23,11 @@ import {
   FaIdBadge,
   FaDollarSign,
   FaStar,
-  FaUser,
+  FaUserTie,
   FaTrophy,
   FaBriefcase,
   FaBuilding,
   FaCrown,
-  FaUserTie,
   FaTools,
   FaChartLine,
   FaCheckCircle,
@@ -467,8 +466,26 @@ const EmployeesPage = () => {
     );
   }
 
-  const StatCard = ({ title, value, icon: Icon, color, change }) => (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+  // ⭐ StatCard: button có thể click để filter
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    color,
+    change,
+    onClick,
+    active
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left bg-white p-6 rounded-lg shadow-sm border transition-all
+        ${
+          active
+            ? "border-blue-500 ring-2 ring-blue-200 scale-[1.01]"
+            : "border-gray-200 hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5"
+        }`}
+    >
       <div className="flex items-center">
         <div className={`p-3 rounded-lg ${color} mr-4`}>
           <Icon className="text-xl text-white" />
@@ -490,7 +507,7 @@ const EmployeesPage = () => {
           )}
         </div>
       </div>
-    </div>
+    </button>
   );
 
   // ==================== UI ====================
@@ -516,7 +533,7 @@ const EmployeesPage = () => {
           </button>
         </div>
 
-        {/* Statistics Cards */}
+        {/* Statistics Cards (click để filter) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Tổng nhân viên"
@@ -524,6 +541,12 @@ const EmployeesPage = () => {
             icon={FaUsers}
             color="bg-blue-500"
             change={3}
+            onClick={() => {
+              setFilterStatus("");
+              setFilterDepartment("");
+              setCurrentPage(1);
+            }}
+            active={filterStatus === "" && filterDepartment === ""}
           />
           <StatCard
             title="Đang làm việc"
@@ -531,6 +554,12 @@ const EmployeesPage = () => {
             icon={FaUserTie}
             color="bg-green-500"
             change={5}
+            onClick={() => {
+              setFilterStatus("active");
+              setFilterDepartment("");
+              setCurrentPage(1);
+            }}
+            active={filterStatus === "active" && filterDepartment === ""}
           />
           <StatCard
             title="Nghỉ việc"
@@ -538,6 +567,12 @@ const EmployeesPage = () => {
             icon={FaUserCircle}
             color="bg-red-500"
             change={-2}
+            onClick={() => {
+              setFilterStatus("inactive");
+              setFilterDepartment("");
+              setCurrentPage(1);
+            }}
+            active={filterStatus === "inactive" && filterDepartment === ""}
           />
           <StatCard
             title="Quản lý"
@@ -545,6 +580,16 @@ const EmployeesPage = () => {
             icon={FaCrown}
             color="bg-purple-500"
             change={0}
+            onClick={() => {
+              const managementDept = mapRoleCodeToDepartment("ADMIN");
+              setFilterDepartment(managementDept);
+              setFilterStatus("");
+              setCurrentPage(1);
+            }}
+            active={
+              filterDepartment === mapRoleCodeToDepartment("ADMIN") &&
+              filterStatus === ""
+            }
           />
         </div>
 
@@ -554,14 +599,20 @@ const EmployeesPage = () => {
             <div className="md:col-span-2">
               <SearchBar
                 value={searchTerm}
-                onChange={setSearchTerm}
+                onChange={(v) => {
+                  setSearchTerm(v);
+                  setCurrentPage(1);
+                }}
                 placeholder="Tìm kiếm theo tên, email, mã NV..."
               />
             </div>
             <div>
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Tất cả trạng thái</option>
@@ -572,7 +623,10 @@ const EmployeesPage = () => {
             <div>
               <select
                 value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
+                onChange={(e) => {
+                  setFilterDepartment(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Tất cả phòng ban</option>
